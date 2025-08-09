@@ -17,7 +17,7 @@
         {
           "id": "translate-sidebar",
           "title": "翻译",
-          "icon": "$(symbol-string)"
+          "icon": "src/images/logo.svg"
         }
       ]
     },
