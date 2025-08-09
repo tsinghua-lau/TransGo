@@ -1,0 +1,78 @@
+{
+  "name": "vscode-translate",
+  "displayName": "中英文翻译",
+  "description": "VSCode中英文翻译插件",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "translate-sidebar",
+          "title": "翻译",
+          "icon": "$(symbol-string)"
+        }
+      ]
+    },
+    "views": {
+      "translate-sidebar": [
+        {
+          "type": "webview",
+          "id": "translateView",
+          "name": "："
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "translate.openView",
+        "title": "打开翻译",
+        "icon": "$(symbol-string)"
+      },
+      {
+        "command": "translate.openSettings",
+        "title": "设置",
+        "icon": "$(gear)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "translate.openSettings",
+          "when": "view == translateView",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "say": "^0.13.1"
+  },
+  "icon": "src/images/logo.png",
+  "keywords": [
+    "translate",
+    "translation",
+    "chinese",
+    "english"
+  ],
+  "author": "",
+  "license": "MIT"
+}
