@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { ConfigManager } from './configManager'
 import { sha256, truncate } from './utils/crypto'
 import MD5 from './utils/md5'
 
@@ -23,9 +24,6 @@ export const TRANSLATION_PROVIDERS: TranslationProvider[] = [
 
 export class TranslationService {
   private static instance: TranslationService
-  private currentProvider: string = 'google'
-  private baiduConfig: { appid?: string; appkey?: string } = {}
-  private youdaoConfig: { appKey?: string; appSecret?: string } = {}
 
   private constructor() {}
 
@@ -79,27 +77,27 @@ export class TranslationService {
   }
 
   setTranslationProvider(provider: string): void {
-    this.currentProvider = provider
+    ConfigManager.setProvider(provider)
   }
 
   getCurrentProvider(): string {
-    return this.currentProvider
+    return ConfigManager.getProvider()
   }
 
   setBaiduConfig(appid: string, appkey: string): void {
-    this.baiduConfig = { appid, appkey }
+    ConfigManager.setBaiduConfig(appid, appkey)
   }
 
-  getBaiduConfig(): { appid?: string; appkey?: string } {
-    return this.baiduConfig
+  getBaiduConfig(): { appid: string; appkey: string } {
+    return ConfigManager.getBaiduConfig()
   }
 
   setYoudaoConfig(appKey: string, appSecret: string): void {
-    this.youdaoConfig = { appKey, appSecret }
+    ConfigManager.setYoudaoConfig(appKey, appSecret)
   }
 
-  getYoudaoConfig(): { appKey?: string; appSecret?: string } {
-    return this.youdaoConfig
+  getYoudaoConfig(): { appKey: string; appSecret: string } {
+    return ConfigManager.getYoudaoConfig()
   }
 
   async translateText(text: string): Promise<TranslationResult> {
@@ -125,8 +123,9 @@ export class TranslationService {
 
     try {
       let translatedText: string
+      const currentProvider = this.getCurrentProvider()
 
-      switch (this.currentProvider) {
+      switch (currentProvider) {
         case 'baidu':
           translatedText = await this.callBaiduTranslationAPI(cleanedText, sourceLang, targetLang)
           break
@@ -216,19 +215,20 @@ export class TranslationService {
   }
 
   private async callBaiduTranslationAPI(text: string, from: string, to: string): Promise<string> {
-    if (!this.baiduConfig.appid || !this.baiduConfig.appkey) {
+    const baiduConfig = this.getBaiduConfig()
+    if (!baiduConfig.appid || !baiduConfig.appkey) {
       throw new Error('百度翻译需要配置 APPID 和密钥')
     }
 
     try {
       const salt = Date.now().toString()
-      const sign = MD5(this.baiduConfig.appid + text + salt + this.baiduConfig.appkey)
+      const sign = MD5(baiduConfig.appid + text + salt + baiduConfig.appkey)
       const url = 'https://fanyi-api.baidu.com/api/trans/vip/translate'
       const params = {
         q: text,
         from: from,
         to: to,
-        appid: this.baiduConfig.appid,
+        appid: baiduConfig.appid,
         salt: salt,
         sign: sign,
       }
@@ -284,7 +284,8 @@ export class TranslationService {
   }
 
   private async callYoudaoTranslationAPI(text: string, from: string, to: string): Promise<string> {
-    if (!this.youdaoConfig.appKey || !this.youdaoConfig.appSecret) {
+    const youdaoConfig = this.getYoudaoConfig()
+    if (!youdaoConfig.appKey || !youdaoConfig.appSecret) {
       throw new Error('有道翻译需要配置 AppKey 和 AppSecret')
     }
 
@@ -292,7 +293,7 @@ export class TranslationService {
       const salt = Date.now().toString()
       const curtime = Math.round(Date.now() / 1000).toString()
       const input = truncate(text)
-      const signStr = this.youdaoConfig.appKey + input + salt + curtime + this.youdaoConfig.appSecret
+      const signStr = youdaoConfig.appKey + input + salt + curtime + youdaoConfig.appSecret
       const sign = sha256(signStr)
 
       // 转换语言代码
@@ -304,7 +305,7 @@ export class TranslationService {
         q: text,
         from: fromLang,
         to: toLang,
-        appKey: this.youdaoConfig.appKey,
+        appKey: youdaoConfig.appKey,
         salt: salt,
         sign: sign,
         signType: 'v3',

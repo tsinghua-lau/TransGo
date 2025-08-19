@@ -1,43 +1,36 @@
-# VSCode翻译插件
+# 中英文翻译说明
 
-一个简单的VSCode中英文翻译插件，支持中英文互译。
+![插件演示](https://i-blog.csdnimg.cn/direct/777f61b761c8411b8f83bb94a52df5a7.gif#pic_center)
+
+默认使用 `Google翻译`无需配置即可翻译（ 需要开魔法 )
+
+选择 `百度翻译` 或 `有道翻译` 需要配置 `Key` 和 `密钥` 点击 ⚙️ 打开配置。
+
+官网申请免费的 API Key 和密钥 完全够个人使用
+
+- [百度翻译](https://fanyi-api.baidu.com/)
+- [有道翻译](https://ai.youdao.com/)
 
 ## 功能特点
 
-- 在VSCode左侧活动栏添加翻译图标
+- 在 VSCode 左侧活动栏添加翻译图标
 - 点击图标打开翻译侧边栏
 - 自动识别中英文并进行相互翻译
 - 简洁美观的界面设计
-- 支持快捷键翻译（Ctrl/Cmd + Enter）
 
 ## 安装使用
 
-1. 编译插件：
-   ```bash
-   npm install
-   npm run compile
-   ```
-
-2. 在VSCode中安装插件：
-   - 按 `F5` 启动扩展开发主机
-   - 或者打包插件：`vsce package`
-
-3. 使用插件：
-   - 点击左侧活动栏的翻译图标
-   - 在侧边栏中输入要翻译的文本
-   - 点击"翻译"按钮或使用快捷键 `Ctrl/Cmd + Enter`
-
-## 开发
-
-- `npm run compile`：编译TypeScript代码
-- `npm run watch`：监听文件变化并自动编译
+- 点击左侧活动栏的翻译图标
+- 在侧边栏中输入要翻译的文本
+- 点击"翻译"按钮或使用快捷键 `Enter`
 
 ## 技术栈
 
 - TypeScript
 - VSCode Extension API
-- Google翻译API
-- Webview
+- Google 翻译 API
+- 百度翻译 API
+- 有道翻译 API
 
 ## 许可证
 

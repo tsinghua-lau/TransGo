@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import { ConfigManager } from './configManager'
 import { TranslationService } from './translationService'
 import { TTSService } from './ttsService'
 
@@ -12,6 +13,27 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
   constructor(private readonly _extensionUri: vscode.Uri) {
     this.translationService = TranslationService.getInstance()
     this.ttsService = TTSService.getInstance()
+
+    // 初始化时从settings.json加载配置
+    this.loadConfigFromSettings()
+  }
+
+  private loadConfigFromSettings() {
+    // 从VS Code配置中加载翻译服务提供商
+    const provider = ConfigManager.getProvider()
+    this.translationService.setTranslationProvider(provider)
+
+    // 加载百度翻译配置
+    const baiduConfig = ConfigManager.getBaiduConfig()
+    if (baiduConfig.appid && baiduConfig.appkey) {
+      this.translationService.setBaiduConfig(baiduConfig.appid, baiduConfig.appkey)
+    }
+
+    // 加载有道翻译配置
+    const youdaoConfig = ConfigManager.getYoudaoConfig()
+    if (youdaoConfig.appKey && youdaoConfig.appSecret) {
+      this.translationService.setYoudaoConfig(youdaoConfig.appKey, youdaoConfig.appSecret)
+    }
   }
 
   public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken) {
@@ -67,13 +89,13 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
           })
           break
         case 'setProvider':
-          this.translationService.setTranslationProvider(data.provider)
+          await this.translationService.setTranslationProvider(data.provider)
           break
         case 'setBaiduConfig':
-          this.translationService.setBaiduConfig(data.appid, data.appkey)
+          await this.translationService.setBaiduConfig(data.appid, data.appkey)
           break
         case 'setYoudaoConfig':
-          this.translationService.setYoudaoConfig(data.appKey, data.appSecret)
+          await this.translationService.setYoudaoConfig(data.appKey, data.appSecret)
           break
         case 'getProvider':
           webviewView.webview.postMessage({
@@ -150,7 +172,7 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
-    // Get the local path to the image and then convert it to a uri the webview can use
+    // 获取本地图片的路径，并将其转换为 webview 可以使用的 uri
     const sendIconPath = vscode.Uri.joinPath(this._extensionUri, 'src', 'images', 'send.png')
     const sendIconUri = webview.asWebviewUri(sendIconPath)
 
@@ -450,6 +472,8 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                     border-top: 1px solid var(--vscode-input-border);
                     background-color: var(--vscode-input-background);
                     border-radius: 0 0 8px 8px;
+                    min-height: 35px;
+                    height: 35px;
                 }
 
                 .input-play-btn {
@@ -464,6 +488,7 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                     justify-content: center;
                     transition: all 0.2s ease;
                     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                    flex-shrink: 0;
                 }
                 
                 .input-play-btn img {
@@ -503,6 +528,7 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                     padding: 6px;
                     transition: all 0.2s ease;
                     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                    flex-shrink: 0;
                 }
                 
                 .send-btn img {
@@ -517,7 +543,17 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                 }
                 
                 .send-btn.loading img {
-                    display: none;
+                    animation: spin 1s linear infinite;
+                    opacity: 1 !important;
+                }
+                
+                @keyframes spin {
+                    from {
+                        transform: rotate(0deg);
+                    }
+                    to {
+                        transform: rotate(360deg);
+                    }
                 }
                 
                 // .send-btn.loading::after {
@@ -673,6 +709,18 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                 .btn-text {
                     font-size: 11px;
                     font-weight: 500;
+                    background: var(--vscode-button-secondaryBackground);
+                    border: 1px solid var(--vscode-button-border);
+                    color: var(--vscode-button-secondaryForeground);
+                    cursor: pointer;
+                    padding: 4px 8px;
+                    border-radius: 6px;
+                    transition: all 0.2s ease;
+                    margin-left: 8px;
+                }
+                
+                .btn-text:hover {
+                    background-color: var(--vscode-button-secondaryHoverBackground);
                 }
                 
                 
@@ -711,6 +759,116 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                     display: inline-block;
                     font-weight: 500;
                 }
+                
+                .camel-case-section {
+                    margin-top: 16px;
+                }
+                
+                .camel-case-header {
+                    display: flex;
+                    margin-bottom: 12px;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                }
+                
+                .btn-camel-case {
+                    font-size: 11px;
+                    font-weight: 500;
+                    background: var(--vscode-button-secondaryBackground);
+                    border: 1px solid var(--vscode-button-border);
+                    color: var(--vscode-button-secondaryForeground);
+                    cursor: pointer;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    transition: all 0.2s ease;
+                    user-select: none;
+                    display: inline-block;
+                }
+                
+                .btn-camel-case:hover {
+                    background-color: var(--vscode-button-secondaryHoverBackground);
+                    transform: translateY(-1px);
+                }
+                
+                .btn-camel-case.active {
+                    background-color: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border-color: var(--vscode-button-background);
+                }
+                
+                .camel-case-result {
+                    border: 1px solid var(--vscode-panel-border);
+                    border-radius: 8px;
+                    background-color: var(--vscode-sideBar-background);
+                    position: relative;
+                }
+                
+                .camel-case-content-wrapper {
+                    position: relative;
+                }
+                
+                .camel-case-content {
+                    padding: 16px 16px 50px 16px;
+                    background-color: var(--vscode-editor-background);
+                    border: 1px solid var(--vscode-input-border);
+                    border-radius: 6px;
+                    min-height: 60px;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    word-wrap: break-word;
+                    white-space: pre-wrap;
+                    color: var(--vscode-foreground);
+                    font-family: 'Courier New', monospace;
+                    font-weight: 600;
+                }
+                
+                .camel-case-actions-bottom {
+                    position: absolute;
+                    bottom: 8px;
+                    right: 16px;
+                    display: flex;
+                    align-items: center;
+                }
+                
+                .camel-copy-btn {
+                    width: 32px;
+                    height: 32px;
+                    background: transparent;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 6px;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                }
+                
+                .camel-copy-btn img {
+                    width: 16px;
+                    height: 16px;
+                    opacity: 0.8;
+                    transition: opacity 0.2s ease;
+                }
+                
+                .camel-copy-btn:hover img {
+                    opacity: 1;
+                }
+                
+                .camel-copy-btn:hover {
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+                }
+                
+                .camel-copy-btn.copied {
+                    background-color: var(--vscode-testing-iconPassed);
+                    border-radius: 50%;
+                }
+                
+                .camel-copy-btn.copied img {
+                    filter: brightness(0) invert(1);
+                }
             </style>
         </head>
         <body>
@@ -732,7 +890,7 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                     </div>
                     
                     <div id="resultHeader" class="result-header" style="display: none;">
-                        <div>
+                        <div style="display: flex; align-items: center;">
                             <div id="languageInfo" class="language-info"></div>
                         </div>
                     </div>
@@ -747,6 +905,25 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                                 <button id="copyBtn" class="result-copy-btn" title="复制">
                                     <img id="copyIcon" src="${copyIconUri}" alt="复制" />
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="camelCaseSection" class="camel-case-section" style="display: none;">
+                        <div class="camel-case-header">
+                            <div id="convertToCamelCaseBtn" class="btn-camel-case" title="转换为大驼峰">大驼峰</div>
+                            <div id="convertToLowerCamelCaseBtn" class="btn-camel-case" title="转换为小驼峰">小驼峰</div>
+                            <div id="convertToUnderscoreBtn" class="btn-camel-case" title="转换为下划线">下划线</div>
+                            <div id="convertToKebabCaseBtn" class="btn-camel-case" title="转换为中划线">中划线</div>
+                        </div>
+                        <div id="camelCaseResult" class="camel-case-result" style="display: none;">
+                            <div class="camel-case-content-wrapper">
+                                <div id="camelCaseContent" class="camel-case-content"></div>
+                                <div class="camel-case-actions-bottom">
+                                    <button id="camelCopyBtn" class="camel-copy-btn" title="复制转换结果">
+                                        <img id="camelCopyIcon" src="${copyIconUri}" alt="复制" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -825,6 +1002,15 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                 const resultPlayBtn = document.getElementById('resultPlayBtn');
                 const resultPlayIcon = document.getElementById('resultPlayIcon');
                 const resultHeader = document.getElementById('resultHeader');
+                const convertToCamelCaseBtn = document.getElementById('convertToCamelCaseBtn');
+                const convertToLowerCamelCaseBtn = document.getElementById('convertToLowerCamelCaseBtn');
+                const convertToUnderscoreBtn = document.getElementById('convertToUnderscoreBtn');
+                const convertToKebabCaseBtn = document.getElementById('convertToKebabCaseBtn');
+                const camelCaseSection = document.getElementById('camelCaseSection');
+                const camelCaseResult = document.getElementById('camelCaseResult');
+                const camelCaseContent = document.getElementById('camelCaseContent');
+                const camelCopyBtn = document.getElementById('camelCopyBtn');
+                const camelCopyIcon = document.getElementById('camelCopyIcon');
                 
                 let currentTranslation = '';
                 let currentOriginalText = '';
@@ -1000,6 +1186,35 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                     }
                 });
                 
+                // 大驼峰复制按钮
+                camelCopyBtn.addEventListener('click', async () => {
+                    const camelText = camelCaseContent.textContent;
+                    if (!camelText) return;
+                    
+                    try {
+                        await navigator.clipboard.writeText(camelText);
+                        camelCopyBtn.classList.add('copied');
+                        
+                        setTimeout(() => {
+                            camelCopyBtn.classList.remove('copied');
+                        }, 1000);
+                    } catch (err) {
+                        // 降级方案：使用传统的复制方法
+                        const textArea = document.createElement('textarea');
+                        textArea.value = camelText;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        
+                        camelCopyBtn.classList.add('copied');
+                        
+                        setTimeout(() => {
+                            camelCopyBtn.classList.remove('copied');
+                        }, 1000);
+                    }
+                });
+                
                 // 翻译功能
                 function performTranslation() {
                     const text = inputText.value.trim();
@@ -1009,6 +1224,7 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                     }
                     
                     sendBtn.disabled = true;
+                    sendBtn.classList.add('loading');
                     // 切换为loading图标
                     const sendImg = sendBtn.querySelector('img');
                     if (sendImg) {
@@ -1053,6 +1269,7 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                     switch (message.type) {
                         case 'translationResult':
                             sendBtn.disabled = false;
+                            sendBtn.classList.remove('loading');
                             // 恢复发送图标
                             const sendImg1 = sendBtn.querySelector('img');
                             if (sendImg1) {
@@ -1063,6 +1280,7 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                             break;
                         case 'translationError':
                             sendBtn.disabled = false;
+                            sendBtn.classList.remove('loading');
                             // 恢复发送图标
                             const sendImg2 = sendBtn.querySelector('img');
                             if (sendImg2) {
@@ -1137,6 +1355,20 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                     languageInfo.textContent = \`\${sourceLangName} → \${targetLangName}\`;
                     resultHeader.style.display = 'flex';
                     resultSection.style.display = 'block';
+                    
+                    // 检测翻译结果是否包含中文，如果是中文则不显示转换按钮
+                    const hasChinese = /[\u4e00-\u9fa5]/.test(result.translatedText);
+                    if (hasChinese) {
+                        camelCaseSection.style.display = 'none';
+                    } else {
+                        camelCaseSection.style.display = 'block';
+                        // 清除所有按钮的活跃状态
+                        const allBtns = [convertToCamelCaseBtn, convertToLowerCamelCaseBtn, convertToUnderscoreBtn, convertToKebabCaseBtn];
+                        allBtns.forEach(btn => btn.classList.remove('active'));
+                        // 隐藏转换结果区域
+                        camelCaseResult.style.display = 'none';
+                    }
+                    
                     hideError();
                     
                     // 重置语音播放状态
@@ -1152,6 +1384,7 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                     errorDiv.style.display = 'block';
                     resultHeader.style.display = 'none';
                     resultSection.style.display = 'none';
+                    camelCaseSection.style.display = 'none';
                 }
                 
                 function hideError() {
@@ -1162,6 +1395,209 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                 vscode.postMessage({ type: 'checkTTSAvailable' });
                 // 获取当前翻译提供商并更新标签
                 vscode.postMessage({ type: 'getProvider' });
+
+
+        function toUpperCamelCase(text) {
+  if (typeof text !== 'string') return '';
+
+  // 定义要替换的空格字符列表
+  const spaceChars = [
+    ' ',      // 半角空格 U+0020
+    '　',     // 全角空格 U+3000
+    '\u00A0', // 不换行空格 &nbsp;
+    '\u200B', // 零宽空格
+    '\u202F', // 窄不换行空格
+    '\uFEFF'  // BOM 空格
+  ];
+
+  let result = '';
+  for (const ch of text) {
+    if (spaceChars.includes(ch)) {
+      result += '_';
+    } else {
+      result += ch;
+    }
+  }
+
+  // 按下划线和短横线分隔，转换为大驼峰
+  return result
+    .trim()
+    .split(/[_\-]+/)
+    .filter(word => word.length > 0)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('');
+}
+
+                // 小驼峰转换函数
+                function toLowerCamelCase(text) {
+                  if (typeof text !== 'string') return '';
+
+                  // 定义要替换的空格字符列表
+                  const spaceChars = [
+                    ' ',      // 半角空格 U+0020
+                    '　',     // 全角空格 U+3000
+                    '\u00A0', // 不换行空格 &nbsp;
+                    '\u200B', // 零宽空格
+                    '\u202F', // 窄不换行空格
+                    '\uFEFF'  // BOM 空格
+                  ];
+
+                  let result = '';
+                  for (const ch of text) {
+                    if (spaceChars.includes(ch)) {
+                      result += '_';
+                    } else {
+                      result += ch;
+                    }
+                  }
+
+                  // 按下划线和短横线分隔，转换为小驼峰
+                  const words = result
+                    .trim()
+                    .split(/[_\-]+/)
+                    .filter(word => word.length > 0)
+                    .map(word => word.toLowerCase());
+                  
+                  if (words.length === 0) return '';
+                  
+                  // 第一个单词保持小写，其他单词首字母大写
+                  return words[0] + words.slice(1).map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                  ).join('');
+                }
+
+                // 下划线转换函数
+                function toUnderscoreCase(text) {
+                  if (typeof text !== 'string') return '';
+
+                  // 定义要替换的空格字符列表
+                  const spaceChars = [
+                    ' ',      // 半角空格 U+0020
+                    '　',     // 全角空格 U+3000
+                    '\u00A0', // 不换行空格 &nbsp;
+                    '\u200B', // 零宽空格
+                    '\u202F', // 窄不换行空格
+                    '\uFEFF'  // BOM 空格
+                  ];
+
+                  let result = '';
+                  for (const ch of text) {
+                    if (spaceChars.includes(ch)) {
+                      result += '_';
+                    } else {
+                      result += ch;
+                    }
+                  }
+
+                  // 按下划线和短横线分隔，转换为下划线格式
+                  return result
+                    .trim()
+                    .split(/[_\-]+/)
+                    .filter(word => word.length > 0)
+                    .map(word => word.toLowerCase())
+                    .join('_');
+                }
+
+                // 中划线转换函数
+                function toKebabCase(text) {
+                  if (typeof text !== 'string') return '';
+
+                  // 定义要替换的空格字符列表
+                  const spaceChars = [
+                    ' ',      // 半角空格 U+0020
+                    '　',     // 全角空格 U+3000
+                    '\u00A0', // 不换行空格 &nbsp;
+                    '\u200B', // 零宽空格
+                    '\u202F', // 窄不换行空格
+                    '\uFEFF'  // BOM 空格
+                  ];
+
+                  let result = '';
+                  for (const ch of text) {
+                    if (spaceChars.includes(ch)) {
+                      result += '_';
+                    } else {
+                      result += ch;
+                    }
+                  }
+
+                  // 按下划线和短横线分隔，转换为中划线格式
+                  return result
+                    .trim()
+                    .split(/[_\-]+/)
+                    .filter(word => word.length > 0)
+                    .map(word => word.toLowerCase())
+                    .join('-');
+                }
+
+                // 设置活跃按钮状态的函数
+                function setActiveButton(activeBtn) {
+                    // 移除所有按钮的活跃状态
+                    const allBtns = [convertToCamelCaseBtn, convertToLowerCamelCaseBtn, convertToUnderscoreBtn, convertToKebabCaseBtn];
+                    allBtns.forEach(btn => btn.classList.remove('active'));
+                    
+                    // 为当前点击的按钮添加活跃状态
+                    activeBtn.classList.add('active');
+                }
+
+                convertToCamelCaseBtn.addEventListener('click', () => {
+                    const text = resultContent.textContent;
+                    if (text) {
+                        setActiveButton(convertToCamelCaseBtn);
+                        const camelCaseText = toUpperCamelCase(text);
+                        console.log('大驼峰转换结果:', camelCaseText);
+                        camelCaseContent.textContent = camelCaseText;
+                        camelCaseResult.style.display = 'block';
+                        
+                        // 滚动到转换结果区域
+                        camelCaseResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
+
+                // 小驼峰按钮事件
+                convertToLowerCamelCaseBtn.addEventListener('click', () => {
+                    const text = resultContent.textContent;
+                    if (text) {
+                        setActiveButton(convertToLowerCamelCaseBtn);
+                        const camelCaseText = toLowerCamelCase(text);
+                        console.log('小驼峰转换结果:', camelCaseText);
+                        camelCaseContent.textContent = camelCaseText;
+                        camelCaseResult.style.display = 'block';
+                        
+                        // 滚动到转换结果区域
+                        camelCaseResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
+
+                // 下划线按钮事件
+                convertToUnderscoreBtn.addEventListener('click', () => {
+                    const text = resultContent.textContent;
+                    if (text) {
+                        setActiveButton(convertToUnderscoreBtn);
+                        const underscoreText = toUnderscoreCase(text);
+                        console.log('下划线转换结果:', underscoreText);
+                        camelCaseContent.textContent = underscoreText;
+                        camelCaseResult.style.display = 'block';
+                        
+                        // 滚动到转换结果区域
+                        camelCaseResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
+
+                // 中划线按钮事件
+                convertToKebabCaseBtn.addEventListener('click', () => {
+                    const text = resultContent.textContent;
+                    if (text) {
+                        setActiveButton(convertToKebabCaseBtn);
+                        const kebabText = toKebabCase(text);
+                        console.log('中划线转换结果:', kebabText);
+                        camelCaseContent.textContent = kebabText;
+                        camelCaseResult.style.display = 'block';
+                        
+                        // 滚动到转换结果区域
+                        camelCaseResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
             </script>
         </body>
         </html>`

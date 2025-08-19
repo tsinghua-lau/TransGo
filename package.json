@@ -1,22 +1,60 @@
 {
-  "name": "vscode-translate",
+  "name": "TransGo",
   "displayName": "中英文翻译",
-  "description": "VSCode中英文翻译插件",
-  "version": "1.0.0",
+  "description": "一款简单的侧边栏中英文翻译插件，支持中英文互译、朗读、转为驼峰下划线等",
+  "version": "1.0.1",
+  "publisher": "tsinghua-lau",
   "engines": {
     "vscode": "^1.74.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "*"
+  ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "TransGo",
+      "properties": {
+        "transgo.provider": {
+          "type": "string",
+          "enum": [
+            "google",
+            "baidu",
+            "youdao"
+          ],
+          "default": "google",
+          "description": "翻译服务提供商"
+        },
+        "transgo.baidu.appid": {
+          "type": "string",
+          "default": "",
+          "description": "百度翻译APPID"
+        },
+        "transgo.baidu.appkey": {
+          "type": "string",
+          "default": "",
+          "description": "百度翻译密钥"
+        },
+        "transgo.youdao.appkey": {
+          "type": "string",
+          "default": "",
+          "description": "有道翻译AppKey"
+        },
+        "transgo.youdao.appsecret": {
+          "type": "string",
+          "default": "",
+          "description": "有道翻译AppSecret"
+        }
+      }
+    },
     "viewsContainers": {
       "activitybar": [
         {
           "id": "translate-sidebar",
-          "title": "翻译",
+          "title": "TransGo",
           "icon": "src/images/logo.svg"
         }
       ]
@@ -26,7 +64,7 @@
         {
           "type": "webview",
           "id": "translateView",
-          "name": "："
+          "name": "翻译"
         }
       ]
     },
@@ -57,6 +95,9 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./"
   },
+  "repository": {
+    "url": "https://github.com/tsinghua-lau/TransGo"
+  },
   "devDependencies": {
     "@types/node": "16.x",
     "@types/vscode": "^1.74.0",
@@ -64,7 +105,8 @@
   },
   "dependencies": {
     "axios": "^1.6.0",
-    "say": "^0.13.1"
+    "say": "^0.13.1",
+    "vsce": "^2.15.0"
   },
   "icon": "src/images/logo.png",
   "keywords": [
@@ -73,6 +115,6 @@
     "chinese",
     "english"
   ],
-  "author": "",
+  "author": "tsinghua-lau",
   "license": "MIT"
 }
