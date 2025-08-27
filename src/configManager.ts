@@ -103,4 +103,47 @@ export class ConfigManager {
       }
     })
   }
+
+  /**
+   * 保存翻译状态
+   */
+  static async saveTranslationState(state: { inputText: string; translationResult: any; camelCaseResult: string }): Promise<void> {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    console.log('ConfigManager: 保存状态到配置:', state)
+    await config.update('state', state, vscode.ConfigurationTarget.Global)
+  }
+
+  /**
+   * 获取翻译状态
+   */
+  static getTranslationState(): {
+    inputText: string
+    translationResult: any
+    camelCaseResult: string
+  } {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    const state = config.get('state', {
+      inputText: '',
+      translationResult: null,
+      camelCaseResult: '',
+    })
+    console.log('ConfigManager: 从配置读取状态:', state)
+    return state
+  }
+
+  /**
+   * 清除翻译状态
+   */
+  static async clearTranslationState(): Promise<void> {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    await config.update(
+      'state',
+      {
+        inputText: '',
+        translationResult: null,
+        camelCaseResult: '',
+      },
+      vscode.ConfigurationTarget.Global
+    )
+  }
 }

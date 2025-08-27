@@ -10,12 +10,22 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
   private translationService: TranslationService
   private ttsService: TTSService
 
+  // 保存翻译状态
+  private translationState = {
+    inputText: '',
+    translationResult: null as any,
+    camelCaseResult: '',
+  }
+
   constructor(private readonly _extensionUri: vscode.Uri) {
     this.translationService = TranslationService.getInstance()
     this.ttsService = TTSService.getInstance()
 
     // 初始化时从settings.json加载配置
     this.loadConfigFromSettings()
+
+    // 加载保存的翻译状态
+    this.loadTranslationState()
   }
 
   private loadConfigFromSettings() {
@@ -36,6 +46,13 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private loadTranslationState() {
+    // 从VS Code配置中加载翻译状态
+    const savedState = ConfigManager.getTranslationState()
+    this.translationState = savedState
+    console.log('TransGo: 加载翻译状态:', savedState)
+  }
+
   public resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken) {
     this._view = webviewView
 
@@ -46,11 +63,26 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview)
 
+    // 重新加载翻译状态（每次打开侧边栏时）
+    this.loadTranslationState()
+
     webviewView.webview.onDidReceiveMessage(async (data) => {
       switch (data.type) {
+        case 'webviewReady':
+          // 前端通知已准备好，现在可以恢复状态
+          console.log('TransGo: Webview已准备好，开始恢复状态')
+          this.restoreState()
+          break
         case 'translate':
           try {
+            // 保存用户输入的文本
+            await this.saveInputText(data.text)
+
             const result = await this.translationService.translateText(data.text)
+
+            // 保存翻译结果
+            await this.saveTranslationResult(result)
+
             webviewView.webview.postMessage({
               type: 'translationResult',
               result: result,
@@ -149,6 +181,14 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
             isValid: isConfigValid,
             message: errorMessage,
           })
+          break
+        case 'saveCamelCaseResult':
+          // 保存驼峰转换结果
+          await this.saveCamelCaseResult(data.result)
+          break
+        case 'saveInputText':
+          // 保存输入文本
+          await this.saveInputText(data.text)
           break
       }
     })
@@ -545,6 +585,8 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                 .send-btn.loading img {
                     animation: spin 1s linear infinite;
                     opacity: 1 !important;
+                    width: 18px;
+                    height: 18px;
                 }
                 
                 @keyframes spin {
@@ -738,7 +780,7 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                 }
                 
                 .error::before {
-                    content: "⚠️";
+                    content: "❗️";
                     font-size: 16px;
                 }
                 
@@ -746,7 +788,6 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                     text-align: center;
                     color: var(--vscode-foreground);
                     font-style: italic;
-                    padding: 20px;
                 }
                 
                 .language-info {
@@ -1255,6 +1296,14 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                         performTranslation();
                     }
                 });
+
+                // 监听输入文本变化，保存状态
+                inputText.addEventListener('input', () => {
+                    vscode.postMessage({
+                        type: 'saveInputText',
+                        text: inputText.value
+                    });
+                });
                 
                 window.addEventListener('message', event => {
                     const message = event.data;
@@ -1340,6 +1389,19 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                             }
                             // 如果配置无效，保持在设置页面，VS Code会显示通知
                             break;
+                        case 'restoreInputText':
+                            // 恢复输入文本
+                            inputText.value = message.text;
+                            break;
+                        case 'restoreTranslationResult':
+                            // 恢复翻译结果
+                            showResult(message.result);
+                            break;
+                        case 'restoreCamelCaseResult':
+                            // 恢复驼峰转换结果
+                            camelCaseContent.textContent = message.result;
+                            camelCaseResult.style.display = 'block';
+                            break;
                     }
                 });
                 
@@ -1395,6 +1457,11 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                 vscode.postMessage({ type: 'checkTTSAvailable' });
                 // 获取当前翻译提供商并更新标签
                 vscode.postMessage({ type: 'getProvider' });
+                
+                // 通知后端 webview 已准备好，可以开始恢复状态
+                setTimeout(() => {
+                    vscode.postMessage({ type: 'webviewReady' });
+                }, 100);
 
 
         function toUpperCamelCase(text) {
@@ -1549,6 +1616,12 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                         camelCaseContent.textContent = camelCaseText;
                         camelCaseResult.style.display = 'block';
                         
+                        // 保存驼峰转换结果
+                        vscode.postMessage({
+                            type: 'saveCamelCaseResult',
+                            result: camelCaseText
+                        });
+                        
                         // 滚动到转换结果区域
                         camelCaseResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }
@@ -1563,6 +1636,12 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
                         console.log('小驼峰转换结果:', camelCaseText);
                         camelCaseContent.textContent = camelCaseText;
                         camelCaseResult.style.display = 'block';
+                        
+                        // 保存驼峰转换结果
+                        vscode.postMessage({
+                            type: 'saveCamelCaseResult',
+                            result: camelCaseText
+                        });
                         
                         // 滚动到转换结果区域
                         camelCaseResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1601,5 +1680,85 @@ export class TranslationViewProvider implements vscode.WebviewViewProvider {
             </script>
         </body>
         </html>`
+  }
+
+  /**
+   * 保存翻译状态到持久存储
+   */
+  private async saveState() {
+    console.log('TransGo: 保存翻译状态:', this.translationState)
+    await ConfigManager.saveTranslationState(this.translationState)
+  }
+
+  /**
+   * 恢复翻译状态
+   */
+  private restoreState() {
+    if (!this._view) return
+
+    console.log('TransGo: 准备恢复状态:', this.translationState)
+
+    // 恢复输入文本
+    if (this.translationState.inputText) {
+      console.log('TransGo: 恢复输入文本:', this.translationState.inputText)
+      this._view.webview.postMessage({
+        type: 'restoreInputText',
+        text: this.translationState.inputText,
+      })
+    }
+
+    // 恢复翻译结果
+    if (this.translationState.translationResult) {
+      console.log('TransGo: 恢复翻译结果:', this.translationState.translationResult)
+      this._view.webview.postMessage({
+        type: 'restoreTranslationResult',
+        result: this.translationState.translationResult,
+      })
+    }
+
+    // 恢复驼峰转换结果
+    if (this.translationState.camelCaseResult) {
+      console.log('TransGo: 恢复驼峰转换结果:', this.translationState.camelCaseResult)
+      this._view.webview.postMessage({
+        type: 'restoreCamelCaseResult',
+        result: this.translationState.camelCaseResult,
+      })
+    }
+  }
+
+  /**
+   * 保存用户输入的文本
+   */
+  private async saveInputText(text: string) {
+    this.translationState.inputText = text
+    await this.saveState()
+  }
+
+  /**
+   * 保存翻译结果
+   */
+  private async saveTranslationResult(result: any) {
+    this.translationState.translationResult = result
+    await this.saveState()
+  }
+
+  /**
+   * 保存驼峰转换结果
+   */
+  private async saveCamelCaseResult(result: string) {
+    this.translationState.camelCaseResult = result
+    await this.saveState()
+  }
+
+  /**
+   * 清除翻译状态
+   */
+  public async clearState() {
+    this.translationState = {
+      inputText: '',
+      translationResult: null,
+      camelCaseResult: '',
+    }
+    await ConfigManager.clearTranslationState()
   }
 }

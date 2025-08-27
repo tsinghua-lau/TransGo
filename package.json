@@ -47,6 +47,15 @@
           "type": "string",
           "default": "",
           "description": "有道翻译AppSecret"
+        },
+        "transgo.state": {
+          "type": "object",
+          "default": {
+            "inputText": "",
+            "translationResult": null,
+            "camelCaseResult": ""
+          },
+          "description": "翻译状态数据（内部使用，请勿手动修改）"
         }
       }
     },
