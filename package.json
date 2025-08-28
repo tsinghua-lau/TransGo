@@ -1,8 +1,8 @@
 {
   "name": "TransGo",
   "displayName": "中英文翻译",
-  "description": "一款简单的侧边栏中英文翻译插件，支持中英文互译、朗读、转为驼峰下划线等",
-  "version": "1.0.1",
+  "description": "侧边栏中英文翻译插件，支持中英文互译、朗读、转为驼峰下划线等",
+  "version": "1.0.3",
   "publisher": "tsinghua-lau",
   "engines": {
     "vscode": "^1.74.0"
@@ -59,24 +59,6 @@
         }
       }
     },
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "translate-sidebar",
-          "title": "TransGo",
-          "icon": "src/images/logo.svg"
-        }
-      ]
-    },
-    "views": {
-      "translate-sidebar": [
-        {
-          "type": "webview",
-          "id": "translateView",
-          "name": "翻译"
-        }
-      ]
-    },
     "commands": [
       {
         "command": "translate.openView",
@@ -84,17 +66,29 @@
         "icon": "$(symbol-string)"
       },
       {
-        "command": "translate.openSettings",
-        "title": "设置",
-        "icon": "$(gear)"
+        "command": "translate.quickTranslate",
+        "title": "快速翻译",
+        "icon": "src/images/logo.png"
+      },
+      {
+        "command": "translate.translateSelection",
+        "title": "翻译选中文本",
+        "icon": "src/images/logo.svg"
       }
     ],
     "menus": {
-      "view/title": [
+      "editor/title": [
         {
-          "command": "translate.openSettings",
-          "when": "view == translateView",
+          "command": "translate.quickTranslate",
+          "when": "editorTextFocus",
           "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "translate.translateSelection",
+          "when": "editorHasSelection",
+          "group": "translate"
         }
       ]
     }

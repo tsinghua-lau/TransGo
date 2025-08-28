@@ -145,7 +145,12 @@ export class TranslationService {
         targetLang,
       }
     } catch (error) {
-      throw new Error(`翻译失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      const currentProvider = this.getCurrentProvider()
+      if (currentProvider === 'google') {
+        throw new Error('谷歌翻译需要开启魔法，请尝试开启科学上网或配置其它翻译源。\n详细错误: ' + (error instanceof Error ? error.message : '未知错误'))
+      } else {
+        throw new Error(`翻译失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      }
     }
   }
 
