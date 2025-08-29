@@ -23,7 +23,8 @@
           "enum": [
             "google",
             "baidu",
-            "youdao"
+            "youdao",
+            "tencent"
           ],
           "default": "google",
           "description": "翻译服务提供商"
@@ -47,6 +48,16 @@
           "type": "string",
           "default": "",
           "description": "有道翻译AppSecret"
+        },
+        "transgo.tencent.secretid": {
+          "type": "string",
+          "default": "",
+          "description": "腾讯翻译SecretId"
+        },
+        "transgo.tencent.secretkey": {
+          "type": "string",
+          "default": "",
+          "description": "腾讯翻译SecretKey"
         },
         "transgo.state": {
           "type": "object",

@@ -10,6 +10,7 @@
 
 - [百度翻译](https://fanyi-api.baidu.com/)
 - [有道翻译](https://ai.youdao.com/)
+- [腾讯翻译](https://console.cloud.tencent.com/cam/capi)
 
 ## 功能特点
 

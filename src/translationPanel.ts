@@ -92,6 +92,12 @@ export class TranslationPanelProvider {
     if (youdaoConfig.appKey && youdaoConfig.appSecret) {
       this.translationService.setYoudaoConfig(youdaoConfig.appKey, youdaoConfig.appSecret)
     }
+
+    // 加载腾讯翻译配置
+    const tencentConfig = ConfigManager.getTencentConfig()
+    if (tencentConfig.secretId && tencentConfig.secretKey) {
+      this.translationService.setTencentConfig(tencentConfig.secretId, tencentConfig.secretKey)
+    }
   }
 
   private loadTranslationState() {
@@ -172,6 +178,12 @@ export class TranslationPanelProvider {
           config: this.translationService.getYoudaoConfig(),
         })
         break
+      case 'getTencentConfig':
+        this._panel.webview.postMessage({
+          type: 'tencentConfig',
+          config: this.translationService.getTencentConfig(),
+        })
+        break
       case 'setProvider':
         await this.translationService.setTranslationProvider(message.provider)
         break
@@ -180,6 +192,9 @@ export class TranslationPanelProvider {
         break
       case 'setYoudaoConfig':
         await this.translationService.setYoudaoConfig(message.appKey, message.appSecret)
+        break
+      case 'setTencentConfig':
+        await this.translationService.setTencentConfig(message.secretId, message.secretKey)
         break
     }
   }
@@ -374,7 +389,6 @@ export class TranslationPanelProvider {
                 
                 .label {
                     display: block;
-                    margin-bottom: 8px;
                     font-weight: 600;
                     color: var(--vscode-foreground);
                     font-size: 14px;
@@ -850,6 +864,7 @@ export class TranslationPanelProvider {
                             <option value="google">Google 翻译</option>
                             <option value="baidu">百度翻译</option>
                             <option value="youdao">有道翻译</option>
+                            <option value="tencent">腾讯翻译</option>
                         </select>
                     </div>
                     
@@ -878,6 +893,20 @@ export class TranslationPanelProvider {
                         <div class="form-group">
                             <label class="label" for="youdaoAppSecret">AppSecret:</label>
                             <input type="password" id="youdaoAppSecret" class="config-input" placeholder="请输入有道翻译AppSecret">
+                        </div>
+                    </div>
+                    
+                    <div id="tencentConfig" class="config-section">
+                        <div class="config-note">
+                            使用腾讯翻译需要在 <a href="https://console.cloud.tencent.com/cam/capi" class="config-link" target="_blank">腾讯云控制台</a> 获取 SecretId 和 SecretKey
+                        </div>
+                        <div class="form-group">
+                            <label class="label" for="tencentSecretId">SecretId:</label>
+                            <input type="text" id="tencentSecretId" class="config-input" placeholder="请输入腾讯翻译SecretId">
+                        </div>
+                        <div class="form-group">
+                            <label class="label" for="tencentSecretKey">SecretKey:</label>
+                            <input type="password" id="tencentSecretKey" class="config-input" placeholder="请输入腾讯翻译SecretKey">
                         </div>
                     </div>
                 </div>
@@ -911,10 +940,13 @@ export class TranslationPanelProvider {
                 const providerSelect = document.getElementById('providerSelect');
                 const baiduConfig = document.getElementById('baiduConfig');
                 const youdaoConfig = document.getElementById('youdaoConfig');
+                const tencentConfig = document.getElementById('tencentConfig');
                 const baiduAppid = document.getElementById('baiduAppid');
                 const baiduAppkey = document.getElementById('baiduAppkey');
                 const youdaoAppKey = document.getElementById('youdaoAppKey');
                 const youdaoAppSecret = document.getElementById('youdaoAppSecret');
+                const tencentSecretId = document.getElementById('tencentSecretId');
+                const tencentSecretKey = document.getElementById('tencentSecretKey');
                 const inputLabel = document.getElementById('inputLabel');
                 
                 // 转换按钮
@@ -932,10 +964,11 @@ export class TranslationPanelProvider {
                     const providerNames = {
                         'google': 'Google翻译',
                         'baidu': '百度翻译',
-                        'youdao': '有道翻译'
+                        'youdao': '有道翻译',
+                        'tencent': '腾讯翻译'
                     };
                     const providerName = providerNames[provider] || 'Google翻译';
-                    inputLabel.textContent =   providerName + ':';
+                    inputLabel.textContent = providerName + ':';
                 }
                 
                 // 图片 URI
@@ -1133,6 +1166,7 @@ export class TranslationPanelProvider {
                             providerSelect.value = message.provider;
                             baiduConfig.classList.toggle('show', message.provider === 'baidu');
                             youdaoConfig.classList.toggle('show', message.provider === 'youdao');
+                            tencentConfig.classList.toggle('show', message.provider === 'tencent');
                             updateInputLabel(message.provider);
                             break;
                         case 'baiduConfig':
@@ -1149,6 +1183,14 @@ export class TranslationPanelProvider {
                             }
                             if (message.config.appSecret) {
                                 youdaoAppSecret.value = message.config.appSecret;
+                            }
+                            break;
+                        case 'tencentConfig':
+                            if (message.config.secretId) {
+                                tencentSecretId.value = message.config.secretId;
+                            }
+                            if (message.config.secretKey) {
+                                tencentSecretKey.value = message.config.secretKey;
                             }
                             break;
                     }
@@ -1307,6 +1349,7 @@ export class TranslationPanelProvider {
                     vscode.postMessage({ type: 'getProvider' });
                     vscode.postMessage({ type: 'getBaiduConfig' });
                     vscode.postMessage({ type: 'getYoudaoConfig' });
+                    vscode.postMessage({ type: 'getTencentConfig' });
                 }
                 
                 function showMainPage() {
@@ -1326,6 +1369,7 @@ export class TranslationPanelProvider {
                     // 显示/隐藏配置区域
                     baiduConfig.classList.toggle('show', provider === 'baidu');
                     youdaoConfig.classList.toggle('show', provider === 'youdao');
+                    tencentConfig.classList.toggle('show', provider === 'tencent');
                     
                     // 更新输入标签
                     updateInputLabel(provider);
@@ -1353,10 +1397,23 @@ export class TranslationPanelProvider {
                     }
                 }
                 
+                // 腾讯配置保存
+                function saveTencentConfig() {
+                    if (tencentSecretId.value && tencentSecretKey.value) {
+                        vscode.postMessage({
+                            type: 'setTencentConfig',
+                            secretId: tencentSecretId.value,
+                            secretKey: tencentSecretKey.value
+                        });
+                    }
+                }
+                
                 baiduAppid.addEventListener('blur', saveBaiduConfig);
                 baiduAppkey.addEventListener('blur', saveBaiduConfig);
                 youdaoAppKey.addEventListener('blur', saveYoudaoConfig);
                 youdaoAppSecret.addEventListener('blur', saveYoudaoConfig);
+                tencentSecretId.addEventListener('blur', saveTencentConfig);
+                tencentSecretKey.addEventListener('blur', saveTencentConfig);
                 
                 // 页面加载完成后通知后端
                 setTimeout(() => {

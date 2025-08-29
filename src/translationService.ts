@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { ConfigManager } from './configManager'
-import { sha256, truncate } from './utils/crypto'
+import { sha256, truncate, hmacSha256, sha256Hex, formatDate } from './utils/crypto'
 import MD5 from './utils/md5'
 
 export interface TranslationResult {
@@ -20,6 +20,7 @@ export const TRANSLATION_PROVIDERS: TranslationProvider[] = [
   { id: 'google', name: 'Google 翻译' },
   { id: 'baidu', name: '百度翻译', needsConfig: true },
   { id: 'youdao', name: '有道翻译', needsConfig: true },
+  { id: 'tencent', name: '腾讯翻译', needsConfig: true },
 ]
 
 export class TranslationService {
@@ -100,6 +101,14 @@ export class TranslationService {
     return ConfigManager.getYoudaoConfig()
   }
 
+  setTencentConfig(secretId: string, secretKey: string): void {
+    ConfigManager.setTencentConfig(secretId, secretKey)
+  }
+
+  getTencentConfig(): { secretId: string; secretKey: string } {
+    return ConfigManager.getTencentConfig()
+  }
+
   async translateText(text: string): Promise<TranslationResult> {
     if (!text.trim()) {
       throw new Error('输入文本不能为空')
@@ -131,6 +140,9 @@ export class TranslationService {
           break
         case 'youdao':
           translatedText = await this.callYoudaoTranslationAPI(cleanedText, sourceLang, targetLang)
+          break
+        case 'tencent':
+          translatedText = await this.callTencentTranslationAPI(cleanedText, sourceLang, targetLang)
           break
         case 'google':
         default:
@@ -373,6 +385,114 @@ export class TranslationService {
   private convertToYoudaoLang(lang: string): string {
     const langMap: { [key: string]: string } = {
       zh: 'zh-CHS',
+      en: 'en',
+    }
+    return langMap[lang] || lang
+  }
+
+  private async callTencentTranslationAPI(text: string, from: string, to: string): Promise<string> {
+    const tencentConfig = this.getTencentConfig()
+    if (!tencentConfig.secretId || !tencentConfig.secretKey) {
+      throw new Error('腾讯翻译需要配置 SecretId 和 SecretKey')
+    }
+
+    try {
+      const timestamp = Math.floor(Date.now() / 1000)
+      const date = formatDate(timestamp)
+
+      const service = 'tmt'
+      const version = '2018-03-21'
+      const action = 'TextTranslate'
+      const host = 'tmt.tencentcloudapi.com'
+      const algorithm = 'TC3-HMAC-SHA256'
+
+      const payload = JSON.stringify({
+        SourceText: text,
+        Source: this.convertToTencentLang(from),
+        Target: this.convertToTencentLang(to),
+        ProjectId: 0,
+      })
+
+      const hashedRequestPayload = sha256Hex(payload)
+      const httpRequestMethod = 'POST'
+      const canonicalUri = '/'
+      const canonicalQueryString = ''
+      const canonicalHeaders = `content-type:application/json; charset=utf-8\nhost:${host}\nx-tc-action:${action.toLowerCase()}\nx-tc-timestamp:${timestamp}\nx-tc-version:${version}\n`
+      const signedHeaders = 'content-type;host;x-tc-action;x-tc-timestamp;x-tc-version'
+
+      const canonicalRequest = `${httpRequestMethod}\n${canonicalUri}\n${canonicalQueryString}\n${canonicalHeaders}\n${signedHeaders}\n${hashedRequestPayload}`
+
+      const credentialScope = `${date}/${service}/tc3_request`
+      const hashedCanonicalRequest = sha256Hex(canonicalRequest)
+      const stringToSign = `${algorithm}\n${timestamp}\n${credentialScope}\n${hashedCanonicalRequest}`
+
+      const secretDate = hmacSha256(`TC3${tencentConfig.secretKey}`, date)
+      const secretService = hmacSha256(secretDate, service)
+      const secretSigning = hmacSha256(secretService, 'tc3_request')
+      const signature = hmacSha256(secretSigning, stringToSign).toString('hex')
+
+      const authorization = `${algorithm} Credential=${tencentConfig.secretId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
+
+      const url = `https://${host}/`
+      const headers = {
+        'Authorization': authorization,
+        'Content-Type': 'application/json; charset=utf-8',
+        'Host': host,
+        'X-TC-Action': action,
+        'X-TC-Timestamp': timestamp.toString(),
+        'X-TC-Version': version,
+        'X-TC-Region': 'ap-guangzhou',
+      }
+
+      console.log('腾讯翻译API调用:', {
+        url: url,
+        headers: { ...headers, Authorization: '***' },
+        payload: payload,
+        timestamp: new Date().toISOString(),
+      })
+
+      const response = await axios.post(url, payload, {
+        headers: headers,
+        timeout: 10000,
+      })
+
+      console.log('腾讯翻译API返回:', {
+        status: response.status,
+        data: response.data,
+        timestamp: new Date().toISOString(),
+      })
+
+      if (response.data && response.data.Response) {
+        if (response.data.Response.Error) {
+          const errorCode = response.data.Response.Error.Code
+          const errorMessage = response.data.Response.Error.Message
+          throw new Error(`腾讯翻译错误 (${errorCode}): ${errorMessage}`)
+        }
+
+        if (response.data.Response.TargetText) {
+          return response.data.Response.TargetText
+        }
+      }
+
+      throw new Error('腾讯翻译API返回数据格式错误')
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.code === 'ECONNABORTED') {
+          throw new Error('请求超时，请检查网络连接')
+        }
+        if (error.response?.data?.Response?.Error) {
+          const apiError = error.response.data.Response.Error
+          throw new Error(`腾讯翻译错误 (${apiError.Code}): ${apiError.Message}`)
+        }
+        throw new Error(`网络请求失败: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  private convertToTencentLang(lang: string): string {
+    const langMap: { [key: string]: string } = {
+      zh: 'zh',
       en: 'en',
     }
     return langMap[lang] || lang

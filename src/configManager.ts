@@ -63,6 +63,26 @@ export class ConfigManager {
   }
 
   /**
+   * 获取腾讯翻译配置
+   */
+  static getTencentConfig(): { secretId: string; secretKey: string } {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    return {
+      secretId: config.get('tencent.secretid', ''),
+      secretKey: config.get('tencent.secretkey', ''),
+    }
+  }
+
+  /**
+   * 设置腾讯翻译配置
+   */
+  static async setTencentConfig(secretId: string, secretKey: string): Promise<void> {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    await config.update('tencent.secretid', secretId, vscode.ConfigurationTarget.Global)
+    await config.update('tencent.secretkey', secretKey, vscode.ConfigurationTarget.Global)
+  }
+
+  /**
    * 检查当前配置是否完整
    */
   static isConfigured(): boolean {
@@ -75,6 +95,9 @@ export class ConfigManager {
       case 'youdao':
         const youdaoConfig = this.getYoudaoConfig()
         return youdaoConfig.appKey.length > 0 && youdaoConfig.appSecret.length > 0
+      case 'tencent':
+        const tencentConfig = this.getTencentConfig()
+        return tencentConfig.secretId.length > 0 && tencentConfig.secretKey.length > 0
       case 'google':
       default:
         return true // Google翻译不需要配置
@@ -91,6 +114,8 @@ export class ConfigManager {
     await config.update('baidu.appkey', '', vscode.ConfigurationTarget.Global)
     await config.update('youdao.appkey', '', vscode.ConfigurationTarget.Global)
     await config.update('youdao.appsecret', '', vscode.ConfigurationTarget.Global)
+    await config.update('tencent.secretid', '', vscode.ConfigurationTarget.Global)
+    await config.update('tencent.secretkey', '', vscode.ConfigurationTarget.Global)
   }
 
   /**
