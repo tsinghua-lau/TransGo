@@ -33,7 +33,7 @@ export class TranslationPanelProvider {
     }
 
     // 创建新的面板
-    const panel = vscode.window.createWebviewPanel('translatePanel', '中英文翻译', column || vscode.ViewColumn.One, {
+    const panel = vscode.window.createWebviewPanel('translatePanel', 'TransGo', column || vscode.ViewColumn.One, {
       enableScripts: true,
       localResourceRoots: [extensionUri],
       retainContextWhenHidden: true, // 保持上下文，避免重新加载时丢失状态
@@ -111,6 +111,7 @@ export class TranslationPanelProvider {
   }
 
   private async handleMessage(message: any) {
+    console.log('后端收到消息:', message.type, message)
     switch (message.type) {
       case 'webviewReady':
         console.log('TransGo Panel: Webview已准备好，开始恢复状态')
@@ -196,6 +197,60 @@ export class TranslationPanelProvider {
       case 'setTencentConfig':
         await this.translationService.setTencentConfig(message.secretId, message.secretKey)
         break
+      case 'getAIConfigs':
+        this._panel.webview.postMessage({
+          type: 'aiConfigs',
+          configs: this.translationService.getAIConfigs(),
+        })
+        // 同时发送当前选中的配置ID
+        this._panel.webview.postMessage({
+          type: 'currentAIConfigId',
+          configId: ConfigManager.getCurrentAIConfigId(),
+        })
+        break
+      case 'addAIConfig':
+        await this.translationService.addAIConfig(message.config)
+        // 保存后立即返回最新的配置列表
+        this._panel.webview.postMessage({
+          type: 'aiConfigs',
+          configs: this.translationService.getAIConfigs(),
+        })
+        break
+      case 'removeAIConfig':
+        console.log('后端接收到删除AI配置请求，ID:', message.configId)
+        await this.translationService.removeAIConfig(message.configId)
+        console.log('删除AI配置完成，获取最新配置列表')
+        const updatedConfigs = this.translationService.getAIConfigs()
+        console.log('删除后的配置列表:', updatedConfigs)
+
+        // 删除后立即返回最新的配置列表
+        this._panel.webview.postMessage({
+          type: 'aiConfigs',
+          configs: updatedConfigs,
+        })
+        // 同时发送更新后的当前选中配置ID
+        this._panel.webview.postMessage({
+          type: 'currentAIConfigId',
+          configId: ConfigManager.getCurrentAIConfigId(),
+        })
+        break
+      case 'setCurrentAIConfigId':
+        await this.translationService.setCurrentAIConfigId(message.configId)
+        // 更新选中状态后返回最新的配置列表
+        this._panel.webview.postMessage({
+          type: 'aiConfigs',
+          configs: this.translationService.getAIConfigs(),
+        })
+        break
+      case 'getShowCamelCaseButtons':
+        this._panel.webview.postMessage({
+          type: 'showCamelCaseButtons',
+          show: ConfigManager.getShowCamelCaseButtons(),
+        })
+        break
+      case 'setShowCamelCaseButtons':
+        await ConfigManager.setShowCamelCaseButtons(message.show)
+        break
     }
   }
 
@@ -206,6 +261,30 @@ export class TranslationPanelProvider {
 
   private restoreState() {
     if (!this._panel) return
+
+    // 发送当前配置信息（这样可以确保标签显示正确）
+    this._panel.webview.postMessage({
+      type: 'currentProvider',
+      provider: this.translationService.getCurrentProvider(),
+    })
+
+    // 发送AI配置信息
+    this._panel.webview.postMessage({
+      type: 'aiConfigs',
+      configs: this.translationService.getAIConfigs(),
+    })
+
+    // 发送当前选中的AI配置ID
+    this._panel.webview.postMessage({
+      type: 'currentAIConfigId',
+      configId: ConfigManager.getCurrentAIConfigId(),
+    })
+
+    // 发送驼峰按钮显示配置
+    this._panel.webview.postMessage({
+      type: 'showCamelCaseButtons',
+      show: ConfigManager.getShowCamelCaseButtons(),
+    })
 
     // 恢复输入文本
     if (this.translationState.inputText) {
@@ -319,6 +398,10 @@ export class TranslationPanelProvider {
     const doneIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'done.svg')
     const doneIconUri = webview.asWebviewUri(doneIconPath)
 
+    // AI翻译logo图片
+    const aiIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'ai.svg')
+    const aiIconUri = webview.asWebviewUri(aiIconPath)
+
     return `<!DOCTYPE html>
         <html lang="zh-CN">
         <head>
@@ -388,10 +471,18 @@ export class TranslationPanelProvider {
                 }
                 
                 .label {
-                    display: block;
+                    display: flex;
+                    align-items: center;
                     font-weight: 600;
                     color: var(--vscode-foreground);
                     font-size: 14px;
+                }
+                
+                .ai-icon {
+                    width: 16px;
+                    height: 16px;
+                    margin-right: 6px;
+                    opacity: 0.8;
                 }
                 
                 .input-container {
@@ -728,6 +819,7 @@ export class TranslationPanelProvider {
                 
                 .form-group {
                     margin-bottom: 16px;
+                    margin-top:25px;
                 }
                 
                 .provider-select, .config-input {
@@ -787,6 +879,227 @@ export class TranslationPanelProvider {
                 
                 .config-link:hover {
                     text-decoration: underline;
+                }
+                
+                .ai-configs-container {
+                    max-height: 200px;
+                    overflow-y: auto;
+                    border: 1px solid var(--vscode-input-border);
+                    border-radius: 6px;
+                    background-color: var(--vscode-input-background);
+                }
+                
+                .ai-config-item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 8px 12px;
+                    border-bottom: 1px solid var(--vscode-panel-border);
+                }
+                
+                .ai-config-item:last-child {
+                    border-bottom: none;
+                }
+                
+                .ai-config-item.selected {
+                    background-color: var(--vscode-list-activeSelectionBackground);
+                    color: var(--vscode-list-activeSelectionForeground);
+                }
+                
+                .ai-config-info {
+                    flex: 1;
+                }
+                
+                .ai-config-name {
+                    font-weight: 500;
+                    margin-bottom: 2px;
+                }
+                
+                .ai-config-details {
+                    font-size: 11px;
+                    color: var(--vscode-descriptionForeground);
+                }
+                
+                .ai-config-actions {
+                    display: flex;
+                    gap: 8px;
+                }
+                
+                .ai-config-action-btn {
+                    padding: 4px 8px;
+                    font-size: 11px;
+                    border: 1px solid var(--vscode-button-border);
+                    background: transparent;
+                    color: var(--vscode-button-secondaryForeground);
+                    border-radius: 4px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                
+                .ai-config-action-btn:hover {
+                    background-color: var(--vscode-button-secondaryHoverBackground);
+                }
+                
+                .ai-config-action-btn.select-btn {
+                    background-color: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border-color: var(--vscode-button-background);
+                }
+                
+                .ai-config-action-btn.delete-btn {
+                    background-color: var(--vscode-inputValidation-errorBorder);
+                    color: white;
+                    border-color: var(--vscode-inputValidation-errorBorder);
+                }
+                
+                .add-ai-config-btn {
+                    width: 100%;
+                    padding: 10px 16px;
+                    background: var(--vscode-button-secondaryBackground);
+                    border: 1px solid var(--vscode-button-border);
+                    color: var(--vscode-button-secondaryForeground);
+                    font-family: var(--vscode-font-family);
+                    font-size: 13px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                
+                .add-ai-config-btn:hover {
+                    background-color: var(--vscode-button-secondaryHoverBackground);
+                }
+                
+                .ai-config-form {
+                    margin-top: 16px;
+                    padding: 16px;
+                    border: 1px solid var(--vscode-input-border);
+                    border-radius: 8px;
+                    background-color: var(--vscode-editor-background);
+                }
+                
+                .ai-form-actions {
+                    display: flex;
+                    gap: 12px;
+                    justify-content: flex-end;
+                }
+                
+                .save-ai-config-btn, .cancel-ai-config-btn {
+                    padding: 8px 16px;
+                    font-size: 13px;
+                    font-family: var(--vscode-font-family);
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                
+                .save-ai-config-btn {
+                    background-color: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border: 1px solid var(--vscode-button-background);
+                }
+                
+                .save-ai-config-btn:hover {
+                    background-color: var(--vscode-button-hoverBackground);
+                }
+                
+                .cancel-ai-config-btn {
+                    background: transparent;
+                    color: var(--vscode-button-secondaryForeground);
+                    border: 1px solid var(--vscode-button-border);
+                }
+                
+                .cancel-ai-config-btn:hover {
+                    background-color: var(--vscode-button-secondaryHoverBackground);
+                }
+                
+                .empty-ai-configs {
+                    text-align: center;
+                    padding: 24px;
+                    color: var(--vscode-descriptionForeground);
+                    font-size: 13px;
+                }
+                
+                /* 自定义确认对话框样式 */
+                .custom-confirm-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: none;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 10000;
+                }
+                
+                .custom-confirm-dialog {
+                    background: var(--vscode-editor-background);
+                    border: 1px solid var(--vscode-panel-border);
+                    border-radius: 8px;
+                    padding: 24px;
+                    max-width: 400px;
+                    width: 90%;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                }
+                
+                .custom-confirm-title {
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: var(--vscode-foreground);
+                    margin-bottom: 12px;
+                }
+                
+                .custom-confirm-message {
+                    font-size: 14px;
+                    color: var(--vscode-foreground);
+                    margin-bottom: 20px;
+                    line-height: 1.5;
+                }
+                
+                .custom-confirm-buttons {
+                    display: flex;
+                    gap: 12px;
+                    justify-content: flex-end;
+                }
+                
+                .custom-confirm-btn {
+                    padding: 8px 16px;
+                    border: 1px solid var(--vscode-button-border);
+                    border-radius: 6px;
+                    font-size: 13px;
+                    font-family: var(--vscode-font-family);
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                
+                .custom-confirm-btn.primary {
+                    background-color: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border-color: var(--vscode-button-background);
+                }
+                
+                .custom-confirm-btn.primary:hover {
+                    background-color: var(--vscode-button-hoverBackground);
+                }
+                
+                .custom-confirm-btn.secondary {
+                    background: transparent;
+                    color: var(--vscode-button-secondaryForeground);
+                }
+                
+                .custom-confirm-btn.secondary:hover {
+                    background-color: var(--vscode-button-secondaryHoverBackground);
+                }
+                
+                .custom-confirm-btn.danger {
+                    background-color: var(--vscode-inputValidation-errorBorder);
+                    color: white;
+                    border-color: var(--vscode-inputValidation-errorBorder);
+                }
+                
+                .custom-confirm-btn.danger:hover {
+                    opacity: 0.9;
                 }
             </style>
         </head>
@@ -852,6 +1165,18 @@ export class TranslationPanelProvider {
                 <div id="errorDiv" class="error" style="display: none;"></div>
                 </div>
                 
+                <!-- 自定义确认对话框 -->
+                <div id="customConfirmOverlay" class="custom-confirm-overlay">
+                    <div class="custom-confirm-dialog">
+                        <div id="customConfirmTitle" class="custom-confirm-title">确认操作</div>
+                        <div id="customConfirmMessage" class="custom-confirm-message"></div>
+                        <div class="custom-confirm-buttons">
+                            <button id="customConfirmCancel" class="custom-confirm-btn secondary">取消</button>
+                            <button id="customConfirmOk" class="custom-confirm-btn danger">确定</button>
+                        </div>
+                    </div>
+                </div>
+                
                 <div id="settingsPage" class="settings-page">
                     <div class="settings-header">
                         <h3 class="settings-title">翻译设置</h3>
@@ -865,6 +1190,7 @@ export class TranslationPanelProvider {
                             <option value="baidu">百度翻译</option>
                             <option value="youdao">有道翻译</option>
                             <option value="tencent">腾讯翻译</option>
+                            <option value="ai">AI 翻译</option>
                         </select>
                     </div>
                     
@@ -909,6 +1235,70 @@ export class TranslationPanelProvider {
                             <input type="password" id="tencentSecretKey" class="config-input" placeholder="请输入腾讯翻译SecretKey">
                         </div>
                     </div>
+                    
+                    <div id="aiConfig" class="config-section">
+                        <div class="config-note">
+                            配置AI翻译服务，支持兼容OpenAI格式的API接口（如ChatGPT、Claude、国产大模型等）
+                        </div>
+                        
+                        <div class="ai-config-list">
+                            <div class="form-group">
+                                <label class="label">已配置的AI翻译服务:</label>
+                                <div id="aiConfigsList" class="ai-configs-container">
+                                    <!-- AI配置列表将在这里动态显示 -->
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <button id="addAIConfigBtn" class="add-ai-config-btn">+ 添加新的AI翻译配置</button>
+                            </div>
+                        </div>
+                        
+                        <div id="aiConfigForm" class="ai-config-form" style="display: none;">
+                            <div class="form-group">
+                                <label class="label" for="aiConfigName">配置名称:</label>
+                                <input type="text" id="aiConfigName" class="config-input" placeholder="例如: ChatGPT, Claude, 通义千问">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="label" for="aiConfigVendor">厂商标识:</label>
+                                <input type="text" id="aiConfigVendor" class="config-input" placeholder="例如: openai, anthropic, alibaba">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="label" for="aiConfigBaseUrl">Base URL:</label>
+                                <input type="text" id="aiConfigBaseUrl" class="config-input" placeholder="例如: https://api.openai.com">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="label" for="aiConfigApiKey">API Key:</label>
+                                <input type="password" id="aiConfigApiKey" class="config-input" placeholder="请输入API密钥">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="label" for="aiConfigModel">模型名称:</label>
+                                <input type="text" id="aiConfigModel" class="config-input" placeholder="例如: gpt-4, claude-3-5-sonnet-20241022">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="label" for="aiConfigPrompt">翻译提示词:</label>
+                                <textarea id="aiConfigPrompt" class="config-input" rows="3" placeholder="自定义翻译提示词，使用{text}作为待翻译文本占位符。留空则使用默认提示词。"></textarea>
+                            </div>
+                            
+                            <div class="form-group ai-form-actions">
+                                <button id="saveAIConfigBtn" class="save-ai-config-btn">保存配置</button>
+                                <button id="cancelAIConfigBtn" class="cancel-ai-config-btn">取消</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="label" for="showCamelCaseButtonsCheckbox">界面设置:</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="showCamelCaseButtonsCheckbox" style="margin: 0;">
+                            <label for="showCamelCaseButtonsCheckbox" style="margin: 0; font-weight: normal; font-size: 13px; cursor: pointer;">显示驼峰命名转换按钮（大驼峰、小驼峰等）</label>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -941,6 +1331,7 @@ export class TranslationPanelProvider {
                 const baiduConfig = document.getElementById('baiduConfig');
                 const youdaoConfig = document.getElementById('youdaoConfig');
                 const tencentConfig = document.getElementById('tencentConfig');
+                const aiConfig = document.getElementById('aiConfig');
                 const baiduAppid = document.getElementById('baiduAppid');
                 const baiduAppkey = document.getElementById('baiduAppkey');
                 const youdaoAppKey = document.getElementById('youdaoAppKey');
@@ -948,6 +1339,36 @@ export class TranslationPanelProvider {
                 const tencentSecretId = document.getElementById('tencentSecretId');
                 const tencentSecretKey = document.getElementById('tencentSecretKey');
                 const inputLabel = document.getElementById('inputLabel');
+                
+                // AI配置相关元素
+                const aiConfigsList = document.getElementById('aiConfigsList');
+                const addAIConfigBtn = document.getElementById('addAIConfigBtn');
+                const aiConfigForm = document.getElementById('aiConfigForm');
+                const aiConfigName = document.getElementById('aiConfigName');
+                const aiConfigVendor = document.getElementById('aiConfigVendor');
+                const aiConfigBaseUrl = document.getElementById('aiConfigBaseUrl');
+                const aiConfigApiKey = document.getElementById('aiConfigApiKey');
+                const aiConfigModel = document.getElementById('aiConfigModel');
+                const aiConfigPrompt = document.getElementById('aiConfigPrompt');
+                const saveAIConfigBtn = document.getElementById('saveAIConfigBtn');
+                const cancelAIConfigBtn = document.getElementById('cancelAIConfigBtn');
+                
+                // 界面设置元素
+                const showCamelCaseButtonsCheckbox = document.getElementById('showCamelCaseButtonsCheckbox');
+                
+                // 自定义确认对话框元素
+                const customConfirmOverlay = document.getElementById('customConfirmOverlay');
+                const customConfirmTitle = document.getElementById('customConfirmTitle');
+                const customConfirmMessage = document.getElementById('customConfirmMessage');
+                const customConfirmOk = document.getElementById('customConfirmOk');
+                const customConfirmCancel = document.getElementById('customConfirmCancel');
+                
+                console.log('自定义确认对话框元素获取结果:');
+                console.log('customConfirmOverlay:', customConfirmOverlay);
+                console.log('customConfirmTitle:', customConfirmTitle);
+                console.log('customConfirmMessage:', customConfirmMessage);
+                console.log('customConfirmOk:', customConfirmOk);
+                console.log('customConfirmCancel:', customConfirmCancel);
                 
                 // 转换按钮
                 const convertToCamelCaseBtn = document.getElementById('convertToCamelCaseBtn');
@@ -958,6 +1379,11 @@ export class TranslationPanelProvider {
                 let currentTranslation = '';
                 let isSpeaking = false;
                 let currentSpeakingButton = null;
+                let aiConfigs = [];
+                let currentAIConfigId = '';
+                let isEditingAIConfig = false;
+                let editingConfigId = null;
+                let showCamelCaseButtons = true; // 是否显示驼峰按钮
                 
                 // 更新标签文本的函数
                 function updateInputLabel(provider) {
@@ -965,10 +1391,233 @@ export class TranslationPanelProvider {
                         'google': 'Google翻译',
                         'baidu': '百度翻译',
                         'youdao': '有道翻译',
-                        'tencent': '腾讯翻译'
+                        'tencent': '腾讯翻译',
+                        'ai': 'AI翻译'
                     };
-                    const providerName = providerNames[provider] || 'Google翻译';
-                    inputLabel.textContent = providerName + ':';
+                    
+                    let providerName = providerNames[provider] || 'Google翻译';
+                    
+                    // 如果是AI翻译，显示具体的配置名称
+                    if (provider === 'ai' && currentAIConfigId) {
+                        const currentConfig = aiConfigs.find(config => config.id === currentAIConfigId);
+                        if (currentConfig) {
+                            providerName = currentConfig.name;
+                        }
+                    }
+                    
+                    // 如果是AI翻译，在名称前添加AI图标
+                    if (provider === 'ai') {
+                        inputLabel.innerHTML = '<img src="' + aiIconUri + '" class="ai-icon" alt="AI" />' + providerName + ':';
+                    } else {
+                        inputLabel.textContent = providerName + ':';
+                    }
+                }
+                
+                // AI配置相关函数
+                function escapeHtml(text) {
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                }
+                
+                // 自定义确认对话框函数
+                let confirmCallback = null;
+                
+                function showCustomConfirm(title, message, onConfirm) {
+                    console.log('显示自定义确认对话框');
+                    console.log('标题:', title);
+                    console.log('消息:', message);
+                    console.log('回调函数:', typeof onConfirm, onConfirm);
+                    
+                    customConfirmTitle.textContent = title;
+                    customConfirmMessage.textContent = message;
+                    customConfirmOverlay.style.display = 'flex';
+                    
+                    // 保存回调函数
+                    confirmCallback = onConfirm;
+                    console.log('回调函数已保存:', typeof confirmCallback);
+                }
+                
+                function hideCustomConfirm() {
+                    console.log('隐藏自定义确认对话框');
+                    customConfirmOverlay.style.display = 'none';
+                    confirmCallback = null;
+                }
+                
+                // 添加确认对话框事件监听器
+                console.log('绑定确认对话框事件监听器');
+                console.log('customConfirmOk元素:', customConfirmOk);
+                
+                customConfirmOk.addEventListener('click', () => {
+                    console.log('点击了确定按钮');
+                    console.log('当前回调函数:', typeof confirmCallback, confirmCallback);
+                    
+                    if (confirmCallback) {
+                        console.log('执行回调函数');
+                        const callback = confirmCallback; // 保存回调函数
+                        hideCustomConfirm(); // 先隐藏对话框
+                        callback(); // 再执行回调
+                    } else {
+                        console.log('没有回调函数可执行');
+                        hideCustomConfirm();
+                    }
+                });
+                
+                customConfirmCancel.addEventListener('click', () => {
+                    console.log('点击了取消按钮');
+                    hideCustomConfirm();
+                });
+                
+                // 点击遮罩层关闭
+                customConfirmOverlay.addEventListener('click', (e) => {
+                    console.log('点击了遮罩层');
+                    if (e.target === customConfirmOverlay) {
+                        console.log('点击的是遮罩层本身，关闭对话框');
+                        hideCustomConfirm();
+                    }
+                });
+                
+                // ESC键关闭
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && customConfirmOverlay.style.display === 'flex') {
+                        console.log('按下ESC键，关闭对话框');
+                        hideCustomConfirm();
+                    }
+                });
+                
+                function renderAIConfigsList() {
+                    if (!aiConfigs || aiConfigs.length === 0) {
+                        aiConfigsList.innerHTML = '<div class="empty-ai-configs">暂无AI翻译配置，请点击下方按钮添加</div>';
+                        return;
+                    }
+                    
+                    const html = aiConfigs.map(config => {
+                        const isSelected = config.id === currentAIConfigId;
+                        const actionButton = isSelected ? 
+                            '<button class="ai-config-action-btn selected-btn">已选中</button>' : 
+                            '<button class="ai-config-action-btn select-btn" data-action="select" data-config-id="' + escapeHtml(config.id) + '">选择</button>';
+                        
+                        return '<div class="ai-config-item ' + (isSelected ? 'selected' : '') + '" data-config-id="' + escapeHtml(config.id) + '">' +
+                            '<div class="ai-config-info">' +
+                                '<div class="ai-config-name">' + escapeHtml(config.name) + '</div>' +
+                                '<div class="ai-config-details">' + escapeHtml(config.vendor) + ' | ' + escapeHtml(config.modelName) + '</div>' +
+                            '</div>' +
+                            '<div class="ai-config-actions">' +
+                                actionButton +
+                                '<button class="ai-config-action-btn" data-action="edit" data-config-id="' + escapeHtml(config.id) + '">编辑</button>' +
+                                '<button class="ai-config-action-btn delete-btn" data-action="delete" data-config-id="' + escapeHtml(config.id) + '">删除</button>' +
+                            '</div>' +
+                        '</div>';
+                    }).join('');
+                    
+                    aiConfigsList.innerHTML = html;
+                    
+                    // 如果当前提供商是AI，更新输入标签显示
+                    if ((document.getElementById('providerSelect') ? document.getElementById('providerSelect').value : 'google') === 'ai') {
+                        updateInputLabel('ai');
+                    }
+                }
+                
+                // 使用事件委托处理AI配置操作
+                aiConfigsList.addEventListener('click', (e) => {
+                    const target = e.target;
+                    if (target.tagName !== 'BUTTON') return;
+                    
+                    const action = target.getAttribute('data-action');
+                    const configId = target.getAttribute('data-config-id');
+                    
+                    if (!action || !configId) return;
+                    
+                    switch (action) {
+                        case 'select':
+                            selectAIConfig(configId);
+                            break;
+                        case 'edit':
+                            editAIConfig(configId);
+                            break;
+                        case 'delete':
+                            deleteAIConfig(configId);
+                            break;
+                    }
+                });
+                
+                function clearAIConfigForm() {
+                    aiConfigName.value = '';
+                    aiConfigVendor.value = '';
+                    aiConfigBaseUrl.value = '';
+                    aiConfigApiKey.value = '';
+                    aiConfigModel.value = '';
+                    aiConfigPrompt.value = '';
+                    isEditingAIConfig = false;
+                    editingConfigId = null;
+                }
+                
+                function showAIConfigForm() {
+                    aiConfigForm.style.display = 'block';
+                }
+                
+                function hideAIConfigForm() {
+                    aiConfigForm.style.display = 'none';
+                    clearAIConfigForm();
+                }
+                
+                function selectAIConfig(configId) {
+                    currentAIConfigId = configId;
+                    vscode.postMessage({ type: 'setCurrentAIConfigId', configId: configId });
+                    renderAIConfigsList();
+                    
+                    // 更新输入标签显示
+                    if ((document.getElementById('providerSelect') ? document.getElementById('providerSelect').value : 'google') === 'ai') {
+                        updateInputLabel('ai');
+                    }
+                }
+                
+                function editAIConfig(configId) {
+                    const config = aiConfigs.find(c => c.id === configId);
+                    if (!config) return;
+                    
+                    isEditingAIConfig = true;
+                    editingConfigId = configId;
+                    
+                    aiConfigName.value = config.name;
+                    aiConfigVendor.value = config.vendor;
+                    aiConfigBaseUrl.value = config.baseUrl;
+                    aiConfigApiKey.value = config.apiKey;
+                    aiConfigModel.value = config.modelName;
+                    aiConfigPrompt.value = config.prompt || '';
+                    
+                    showAIConfigForm();
+                }
+                
+                function deleteAIConfig(configId) {
+                    console.log('删除AI配置，ID:', configId);
+                    console.log('当前所有配置:', aiConfigs);
+                    console.log('vscode对象是否存在:', typeof vscode, vscode);
+                    
+                    const config = aiConfigs.find(c => c.id === configId);
+                    const configName = config ? config.name : '该配置';
+                    
+                    console.log('找到的配置:', config);
+                    
+                    showCustomConfirm(
+                        '确认删除',
+                        '确定要删除AI翻译配置 "' + configName + '" 吗？删除后将无法恢复。',
+                        () => {
+                            console.log('确认删除配置，ID:', configId);
+                            console.log('vscode对象:', typeof vscode, vscode);
+                            console.log('vscode.postMessage方法:', typeof vscode.postMessage);
+                            console.log('发送删除消息到后端...');
+                            try {
+                                vscode.postMessage({ type: 'removeAIConfig', configId: configId });
+                                console.log('删除消息已发送');
+                            } catch (error) {
+                                console.error('发送删除消息时出错:', error);
+                            }
+                            if (currentAIConfigId === configId) {
+                                currentAIConfigId = '';
+                            }
+                        }
+                    );
                 }
                 
                 // 图片 URI
@@ -977,6 +1626,7 @@ export class TranslationPanelProvider {
                 const copyIconUri = '${copyIconUri}';
                 const sendIconUri = '${sendIconUri}';
                 const loadingIconUri = '${loadingIconUri}';
+                const aiIconUri = '${aiIconUri}';
                 
                 // 翻译功能
                 function performTranslation() {
@@ -1167,6 +1817,7 @@ export class TranslationPanelProvider {
                             baiduConfig.classList.toggle('show', message.provider === 'baidu');
                             youdaoConfig.classList.toggle('show', message.provider === 'youdao');
                             tencentConfig.classList.toggle('show', message.provider === 'tencent');
+                            aiConfig.classList.toggle('show', message.provider === 'ai');
                             updateInputLabel(message.provider);
                             break;
                         case 'baiduConfig':
@@ -1193,19 +1844,63 @@ export class TranslationPanelProvider {
                                 tencentSecretKey.value = message.config.secretKey;
                             }
                             break;
+                        case 'aiConfigs':
+                            console.log('前端接收到aiConfigs消息:', message.configs);
+                            aiConfigs = message.configs || [];
+                            // 获取当前选中的配置ID
+                            const currentConfig = aiConfigs.find(config => config.id === currentAIConfigId);
+                            if (currentConfig) {
+                                // 如果当前选中的配置仍然存在，保持选中状态
+                                console.log('保持当前选中的配置:', currentConfig);
+                                renderAIConfigsList();
+                            } else if (aiConfigs.length > 0) {
+                                // 如果当前选中的配置不存在了（可能被删除），自动选择第一个
+                                console.log('当前选中的配置不存在，自动选择第一个:', aiConfigs[0]);
+                                currentAIConfigId = aiConfigs[0].id;
+                                renderAIConfigsList();
+                            } else {
+                                // 如果没有配置了，清空选中状态
+                                console.log('没有配置了，清空选中状态');
+                                currentAIConfigId = '';
+                                renderAIConfigsList();
+                            }
+                            
+                            // AI配置加载完成后，更新输入标签显示（如果当前是AI翻译）
+                            if ((document.getElementById('providerSelect') ? document.getElementById('providerSelect').value : 'google') === 'ai') {
+                                updateInputLabel('ai');
+                            }
+                            break;
+                        case 'currentAIConfigId':
+                            currentAIConfigId = message.configId || '';
+                            
+                            // 更新输入标签显示
+                            if ((document.getElementById('providerSelect') ? document.getElementById('providerSelect').value : 'google') === 'ai') {
+                                updateInputLabel('ai');
+                            }
+                            break;
+                        case 'showCamelCaseButtons':
+                            showCamelCaseButtons = message.show;
+                            // 更新复选框状态（仅在设置页面中）
+                            if (showCamelCaseButtonsCheckbox) {
+                                showCamelCaseButtonsCheckbox.checked = showCamelCaseButtons;
+                            }
+                            // 如果当前有翻译结果，根据新配置显示/隐藏按钮
+                            if (currentTranslation) {
+                                updateCamelCaseSectionVisibility();
+                            }
+                            break;
                     }
                 });
                 
-                function showResult(result) {
-                    currentTranslation = result.translatedText;
-                    resultContent.textContent = result.translatedText;
-                    const sourceLangName = result.sourceLang === 'zh' ? '中文' : '英文';
-                    const targetLangName = result.targetLang === 'zh' ? '中文' : '英文';
-                    languageInfo.textContent = \`\${sourceLangName} → \${targetLangName}\`;
-                    resultSection.style.display = 'block';
+                // 更新驼峰转换区域的显示状态
+                function updateCamelCaseSectionVisibility() {
+                    if (!showCamelCaseButtons) {
+                        camelCaseSection.style.display = 'none';
+                        return;
+                    }
                     
-                    // 检测是否需要显示转换按钮
-                    const hasChinese = /[\u4e00-\u9fa5]/.test(result.translatedText);
+                    // 检测是否需要显示转换按钮（只有英文结果才显示）
+                    const hasChinese = /[\u4e00-\u9fa5]/.test(currentTranslation);
                     if (hasChinese) {
                         camelCaseSection.style.display = 'none';
                     } else {
@@ -1214,6 +1909,18 @@ export class TranslationPanelProvider {
                         allBtns.forEach(btn => btn.classList.remove('active'));
                         camelCaseResult.style.display = 'none';
                     }
+                }
+                
+                function showResult(result) {
+                    currentTranslation = result.translatedText;
+                    resultContent.textContent = result.translatedText;
+                    const sourceLangName = result.sourceLang === 'zh' ? '中文' : '英文';
+                    const targetLangName = result.targetLang === 'zh' ? '中文' : '英文';
+                    languageInfo.textContent = sourceLangName + ' → ' + targetLangName;
+                    resultSection.style.display = 'block';
+                    
+                    // 根据配置决定是否显示驼峰转换按钮
+                    updateCamelCaseSectionVisibility();
                     
                     hideError();
                     resetSpeakingState();
@@ -1350,6 +2057,8 @@ export class TranslationPanelProvider {
                     vscode.postMessage({ type: 'getBaiduConfig' });
                     vscode.postMessage({ type: 'getYoudaoConfig' });
                     vscode.postMessage({ type: 'getTencentConfig' });
+                    vscode.postMessage({ type: 'getAIConfigs' });
+                    vscode.postMessage({ type: 'getShowCamelCaseButtons' });
                 }
                 
                 function showMainPage() {
@@ -1370,6 +2079,7 @@ export class TranslationPanelProvider {
                     baiduConfig.classList.toggle('show', provider === 'baidu');
                     youdaoConfig.classList.toggle('show', provider === 'youdao');
                     tencentConfig.classList.toggle('show', provider === 'tencent');
+                    aiConfig.classList.toggle('show', provider === 'ai');
                     
                     // 更新输入标签
                     updateInputLabel(provider);
@@ -1414,6 +2124,62 @@ export class TranslationPanelProvider {
                 youdaoAppSecret.addEventListener('blur', saveYoudaoConfig);
                 tencentSecretId.addEventListener('blur', saveTencentConfig);
                 tencentSecretKey.addEventListener('blur', saveTencentConfig);
+                
+                // AI配置事件监听器
+                addAIConfigBtn.addEventListener('click', () => {
+                    clearAIConfigForm();
+                    showAIConfigForm();
+                });
+                
+                cancelAIConfigBtn.addEventListener('click', () => {
+                    hideAIConfigForm();
+                });
+                
+                saveAIConfigBtn.addEventListener('click', () => {
+                    const name = aiConfigName.value.trim();
+                    const vendor = aiConfigVendor.value.trim();
+                    const baseUrl = aiConfigBaseUrl.value.trim();
+                    const apiKey = aiConfigApiKey.value.trim();
+                    const modelName = aiConfigModel.value.trim();
+                    const prompt = aiConfigPrompt.value.trim();
+                    
+                    if (!name || !vendor || !baseUrl || !apiKey || !modelName) {
+                        alert('请填写所有必填字段（配置名称、厂商标识、Base URL、API Key、模型名称）');
+                        return;
+                    }
+                    
+                    const configId = isEditingAIConfig ? editingConfigId : 'ai_' + Date.now();
+                    const config = {
+                        id: configId,
+                        name: name,
+                        vendor: vendor,
+                        baseUrl: baseUrl,
+                        apiKey: apiKey,
+                        modelName: modelName,
+                        prompt: prompt
+                    };
+                    
+                    vscode.postMessage({ type: 'addAIConfig', config: config });
+                    
+                    // 如果是新增配置，自动选中
+                    if (!isEditingAIConfig) {
+                        currentAIConfigId = configId;
+                        vscode.postMessage({ type: 'setCurrentAIConfigId', configId: configId });
+                    }
+                    
+                    hideAIConfigForm();
+                });
+                
+                // 驼峰按钮显示配置事件监听器
+                showCamelCaseButtonsCheckbox.addEventListener('change', () => {
+                    const show = showCamelCaseButtonsCheckbox.checked;
+                    vscode.postMessage({ type: 'setShowCamelCaseButtons', show: show });
+                    showCamelCaseButtons = show;
+                    // 立即更新当前页面的显示状态
+                    if (currentTranslation) {
+                        updateCamelCaseSectionVisibility();
+                    }
+                });
                 
                 // 页面加载完成后通知后端
                 setTimeout(() => {

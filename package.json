@@ -1,8 +1,8 @@
 {
   "name": "TransGo",
   "displayName": "中英文翻译",
-  "description": "侧边栏中英文翻译插件，支持中英文互译、朗读、转为驼峰下划线等",
-  "version": "1.0.3",
+  "description": "侧边栏中英文翻译插件，支持中英文互译、朗读、转为驼峰下划线等，现已支持AI翻译（ChatGPT、Claude等）",
+  "version": "1.1.0",
   "publisher": "tsinghua-lau",
   "engines": {
     "vscode": "^1.74.0"
@@ -24,7 +24,8 @@
             "google",
             "baidu",
             "youdao",
-            "tencent"
+            "tencent",
+            "ai"
           ],
           "default": "google",
           "description": "翻译服务提供商"
@@ -59,6 +60,16 @@
           "default": "",
           "description": "腾讯翻译SecretKey"
         },
+        "transgo.ai.configs": {
+          "type": "array",
+          "default": [],
+          "description": "AI翻译配置列表"
+        },
+        "transgo.ai.currentConfigId": {
+          "type": "string",
+          "default": "",
+          "description": "当前选中的AI翻译配置ID"
+        },
         "transgo.state": {
           "type": "object",
           "default": {
@@ -67,6 +78,11 @@
             "camelCaseResult": ""
           },
           "description": "翻译状态数据（内部使用，请勿手动修改）"
+        },
+        "transgo.showCamelCaseButtons": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否显示驼峰命名转换按钮"
         }
       }
     },
@@ -91,7 +107,7 @@
       "editor/title": [
         {
           "command": "translate.quickTranslate",
-          "when": "editorTextFocus",
+          "when": "resourceScheme == file",
           "group": "navigation"
         }
       ],

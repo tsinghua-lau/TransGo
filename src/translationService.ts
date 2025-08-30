@@ -1,7 +1,7 @@
-import axios from 'axios'
-import { ConfigManager } from './configManager'
+import { ConfigManager, AITranslationConfig } from './configManager'
 import { sha256, truncate, hmacSha256, sha256Hex, formatDate } from './utils/crypto'
 import MD5 from './utils/md5'
+import axios from 'axios'
 
 export interface TranslationResult {
   originalText: string
@@ -21,6 +21,7 @@ export const TRANSLATION_PROVIDERS: TranslationProvider[] = [
   { id: 'baidu', name: '百度翻译', needsConfig: true },
   { id: 'youdao', name: '有道翻译', needsConfig: true },
   { id: 'tencent', name: '腾讯翻译', needsConfig: true },
+  { id: 'ai', name: 'AI翻译', needsConfig: true },
 ]
 
 export class TranslationService {
@@ -109,6 +110,30 @@ export class TranslationService {
     return ConfigManager.getTencentConfig()
   }
 
+  getAIConfigs(): AITranslationConfig[] {
+    return ConfigManager.getAIConfigs()
+  }
+
+  getCurrentAIConfig(): AITranslationConfig | null {
+    return ConfigManager.getCurrentAIConfig()
+  }
+
+  setAIConfigs(configs: AITranslationConfig[]): void {
+    ConfigManager.setAIConfigs(configs)
+  }
+
+  async addAIConfig(config: AITranslationConfig): Promise<void> {
+    await ConfigManager.addAIConfig(config)
+  }
+
+  async removeAIConfig(configId: string): Promise<void> {
+    await ConfigManager.removeAIConfig(configId)
+  }
+
+  async setCurrentAIConfigId(configId: string): Promise<void> {
+    await ConfigManager.setCurrentAIConfigId(configId)
+  }
+
   async translateText(text: string): Promise<TranslationResult> {
     if (!text.trim()) {
       throw new Error('输入文本不能为空')
@@ -143,6 +168,9 @@ export class TranslationService {
           break
         case 'tencent':
           translatedText = await this.callTencentTranslationAPI(cleanedText, sourceLang, targetLang)
+          break
+        case 'ai':
+          translatedText = await this.callAITranslationAPI(cleanedText, sourceLang, targetLang)
           break
         case 'google':
         default:
@@ -496,5 +524,141 @@ export class TranslationService {
       en: 'en',
     }
     return langMap[lang] || lang
+  }
+
+  private async callAITranslationAPI(text: string, from: string, to: string): Promise<string> {
+    const aiConfig = this.getCurrentAIConfig()
+    if (!aiConfig) {
+      throw new Error('AI翻译需要先配置翻译服务')
+    }
+
+    if (!aiConfig.baseUrl || !aiConfig.apiKey || !aiConfig.modelName) {
+      throw new Error('AI翻译配置不完整，请检查BaseURL、API Key和模型名称')
+    }
+
+    try {
+      const sourceLang = from === 'zh' ? '中文' : '英文'
+      const targetLang = to === 'zh' ? '中文' : '英文'
+      
+      let prompt = aiConfig.prompt || `请将以下${sourceLang}文本翻译成${targetLang}，只返回翻译结果，不要添加任何解释或其他内容：`
+      
+      // 如果用户没有在提示词中包含翻译文本的占位符，则在末尾添加
+      if (!prompt.includes('{text}')) {
+        prompt = `${prompt}\n\n${text}`
+      } else {
+        prompt = prompt.replace('{text}', text)
+      }
+
+      const requestBody = {
+        model: aiConfig.modelName,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 2000
+      }
+
+      // 智能拼接URL：如果用户已配置完整路径则直接使用，否则自动拼接
+      let apiUrl = aiConfig.baseUrl.replace(/\/$/, '') // 去除尾部斜杠
+      if (!apiUrl.endsWith('/chat/completions')) {
+        apiUrl += '/v1/chat/completions'
+      }
+
+      console.log('AI翻译API调用:', {
+        baseUrl: aiConfig.baseUrl,
+        fullUrl: apiUrl,
+        model: aiConfig.modelName,
+        vendor: aiConfig.vendor,
+        requestBody: requestBody,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${aiConfig.apiKey.substring(0, 10)}...` // 只显示API Key前10位
+        },
+        timestamp: new Date().toISOString()
+      })
+
+      const response = await axios.post(
+        apiUrl,
+        requestBody,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${aiConfig.apiKey}`
+          },
+          timeout: 30000
+        }
+      )
+
+      console.log('AI翻译API返回:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        data: response.data,
+        timestamp: new Date().toISOString()
+      })
+
+      if (response.data && response.data.choices && response.data.choices.length > 0) {
+        const result = response.data.choices[0].message?.content || ''
+        console.log('AI翻译成功:', {
+          result: result,
+          resultLength: result.length,
+          timestamp: new Date().toISOString()
+        })
+        if (result.trim()) {
+          return result.trim()
+        }
+      }
+
+      console.error('AI翻译API返回数据格式错误:', {
+        hasData: !!response.data,
+        hasChoices: !!(response.data && response.data.choices),
+        choicesLength: response.data?.choices?.length || 0,
+        data: response.data,
+        timestamp: new Date().toISOString()
+      })
+      throw new Error('AI翻译API返回数据格式错误或内容为空')
+    } catch (error) {
+      console.error('AI翻译API请求异常:', {
+        error: error,
+        errorMessage: error instanceof Error ? error.message : '未知错误',
+        isAxiosError: axios.isAxiosError(error),
+        timestamp: new Date().toISOString()
+      })
+
+      if (axios.isAxiosError(error)) {
+        console.error('Axios错误详情:', {
+          code: error.code,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          headers: error.response?.headers,
+          data: error.response?.data,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method,
+            headers: error.config?.headers,
+            data: error.config?.data
+          },
+          timestamp: new Date().toISOString()
+        })
+
+        if (error.code === 'ECONNABORTED') {
+          throw new Error('AI翻译请求超时，请检查网络连接或BaseURL是否正确')
+        }
+        if (error.response?.status === 401) {
+          throw new Error('AI翻译API认证失败，请检查API Key是否正确')
+        }
+        if (error.response?.status === 404) {
+          throw new Error('AI翻译API地址不存在，请检查BaseURL是否正确')
+        }
+        if (error.response?.data?.error?.message) {
+          throw new Error(`AI翻译错误: ${error.response.data.error.message}`)
+        }
+        throw new Error(`AI翻译网络请求失败: ${error.message}`)
+      }
+      throw error
+    }
   }
 }
