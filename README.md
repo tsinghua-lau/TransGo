@@ -2,7 +2,7 @@
 
 TransGo 是一个专业的 VS Code 翻译插件，支持中英文互译、语音朗读、转驼峰命名等功能，现已全面支持主流 AI 翻译服务。
 
-![插件演示](https://i-blog.csdnimg.cn/direct/7993eca04705409bb75f7eebecf12b77.gif#pic_center)
+![插件演示](https://i-blog.csdnimg.cn/direct/6c65e6fbff5f434ba8e3f20b58604dbf.gif#pic_center)
 
 ## 目录
 
@@ -745,26 +745,6 @@ ollama pull qwen2:7b
 4. **格式保持**: 说明是否需要保持原文格式、标点等
 5. **避免过长**: 提示词过长可能影响效果，保持简洁明确
 
-### 针对不同模型的优化
-
-#### ChatGPT 系列
-
-- 适合详细的规则说明
-- 可以使用角色扮演的方式
-- 支持复杂的条件判断
-
-#### Claude 系列
-
-- 偏好简洁明确的指令
-- 在规则说明上更加直接
-- 注重逻辑性和条理性
-
-#### 国产模型
-
-- 中文提示词通常效果更好
-- 适合使用中文的表达习惯
-- 可以加入更多上下文说明
-
 ## 常见问题
 
 ### 服务选择相关
@@ -970,7 +950,7 @@ Base URL: https://api.deepseek.com
 ```
 配置名称: 通义千问 Turbo
 厂商标识: alibaba
-Base URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+Base URL: https://dashscope.aliyuncs.com/compatible-mode
 模型名称: qwen-turbo
 提示词: 你是专业的中英文翻译专家，请按要求翻译：
 
@@ -1018,7 +998,7 @@ Base URL: https://api.groq.com/openai/v1
 {text}
 ```
 
-### 🔒 隐私安全配置
+### 🔒 隐私安全配置（未测试）
 
 **本地 Ollama**
 
@@ -1035,6 +1015,14 @@ Base URL: http://localhost:11434
 ---
 
 ## 版本更新记录
+
+### v1.0.4
+
+- ✅ 新增 AI 大模型翻译
+
+### v1.0.3
+
+- ✅ 新增腾讯翻译
 
 ### v1.0.2
 
@@ -1069,12 +1057,9 @@ Base URL: http://localhost:11434
 
 ## 许可证
 
-本项目基于 MIT 许可证开源，允许自由使用、修改和分发。
+本项目基于 MIT 许可证开源，允许自由使用、修改和分发，请标注来源。
 
 ---
-
-**最后更新**: 2025 年 8 月 29 日
-**插件版本**: v1.0.2
 
 > 💡 **提示**: 本文档会持续更新，建议收藏 GitHub 链接以获取最新信息。如果您觉得 TransGo 好用，请在 GitHub 给个 ⭐ 支持一下！
 
