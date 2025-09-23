@@ -1,7 +1,7 @@
-import { ConfigManager, AITranslationConfig } from './configManager'
-import { sha256, truncate, hmacSha256, sha256Hex, formatDate } from './utils/crypto'
-import MD5 from './utils/md5'
 import axios from 'axios'
+import { AITranslationConfig, ConfigManager } from './configManager'
+import { formatDate, hmacSha256, sha256, sha256Hex, truncate } from './utils/crypto'
+import MD5 from './utils/md5'
 
 export interface TranslationResult {
   originalText: string
@@ -463,9 +463,9 @@ export class TranslationService {
 
       const url = `https://${host}/`
       const headers = {
-        'Authorization': authorization,
+        Authorization: authorization,
         'Content-Type': 'application/json; charset=utf-8',
-        'Host': host,
+        Host: host,
         'X-TC-Action': action,
         'X-TC-Timestamp': timestamp.toString(),
         'X-TC-Version': version,
@@ -539,9 +539,9 @@ export class TranslationService {
     try {
       const sourceLang = from === 'zh' ? '中文' : '英文'
       const targetLang = to === 'zh' ? '中文' : '英文'
-      
+
       let prompt = aiConfig.prompt || `请将以下${sourceLang}文本翻译成${targetLang}，只返回翻译结果，不要添加任何解释或其他内容：`
-      
+
       // 如果用户没有在提示词中包含翻译文本的占位符，则在末尾添加
       if (!prompt.includes('{text}')) {
         prompt = `${prompt}\n\n${text}`
@@ -554,50 +554,43 @@ export class TranslationService {
         messages: [
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         temperature: 0.3,
-        max_tokens: 2000
+        max_tokens: 2000,
       }
 
-      // 智能拼接URL：如果用户已配置完整路径则直接使用，否则自动拼接
-      let apiUrl = aiConfig.baseUrl.replace(/\/$/, '') // 去除尾部斜杠
-      if (!apiUrl.endsWith('/chat/completions')) {
-        apiUrl += '/v1/chat/completions'
-      }
+      // 直接使用用户填写的Base URL，不进行任何路径处理
+      const apiUrl = aiConfig.baseUrl.replace(/\/$/, '') // 只去除尾部斜杠，保持用户原始配置
 
       console.log('AI翻译API调用:', {
         baseUrl: aiConfig.baseUrl,
-        fullUrl: apiUrl,
+        finalUrl: apiUrl,
         model: aiConfig.modelName,
         vendor: aiConfig.vendor,
         requestBody: requestBody,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${aiConfig.apiKey.substring(0, 10)}...` // 只显示API Key前10位
+          Authorization: `Bearer ${aiConfig.apiKey.substring(0, 10)}...`, // 只显示API Key前10位
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       })
 
-      const response = await axios.post(
-        apiUrl,
-        requestBody,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${aiConfig.apiKey}`
-          },
-          timeout: 30000
-        }
-      )
+      const response = await axios.post(apiUrl, requestBody, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${aiConfig.apiKey}`,
+        },
+        timeout: 30000,
+      })
 
       console.log('AI翻译API返回:', {
         status: response.status,
         statusText: response.statusText,
         headers: response.headers,
         data: response.data,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       })
 
       if (response.data && response.data.choices && response.data.choices.length > 0) {
@@ -605,7 +598,7 @@ export class TranslationService {
         console.log('AI翻译成功:', {
           result: result,
           resultLength: result.length,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         })
         if (result.trim()) {
           return result.trim()
@@ -617,7 +610,7 @@ export class TranslationService {
         hasChoices: !!(response.data && response.data.choices),
         choicesLength: response.data?.choices?.length || 0,
         data: response.data,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       })
       throw new Error('AI翻译API返回数据格式错误或内容为空')
     } catch (error) {
@@ -625,7 +618,7 @@ export class TranslationService {
         error: error,
         errorMessage: error instanceof Error ? error.message : '未知错误',
         isAxiosError: axios.isAxiosError(error),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       })
 
       if (axios.isAxiosError(error)) {
@@ -639,9 +632,9 @@ export class TranslationService {
             url: error.config?.url,
             method: error.config?.method,
             headers: error.config?.headers,
-            data: error.config?.data
+            data: error.config?.data,
           },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         })
 
         if (error.code === 'ECONNABORTED') {

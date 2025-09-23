@@ -1424,10 +1424,10 @@ export class TranslationPanelProvider {
                 let confirmCallback = null;
                 
                 function showCustomConfirm(title, message, onConfirm) {
-                    console.log('显示自定义确认对话框');
-                    console.log('标题:', title);
-                    console.log('消息:', message);
-                    console.log('回调函数:', typeof onConfirm, onConfirm);
+                    // console.log('显示自定义确认对话框');
+                    // console.log('标题:', title);
+                    // console.log('消息:', message);
+                    // console.log('回调函数:', typeof onConfirm, onConfirm);
                     
                     customConfirmTitle.textContent = title;
                     customConfirmMessage.textContent = message;
@@ -1435,22 +1435,22 @@ export class TranslationPanelProvider {
                     
                     // 保存回调函数
                     confirmCallback = onConfirm;
-                    console.log('回调函数已保存:', typeof confirmCallback);
+                    // console.log('回调函数已保存:', typeof confirmCallback);
                 }
                 
                 function hideCustomConfirm() {
-                    console.log('隐藏自定义确认对话框');
+                    // console.log('隐藏自定义确认对话框');
                     customConfirmOverlay.style.display = 'none';
                     confirmCallback = null;
                 }
                 
                 // 添加确认对话框事件监听器
-                console.log('绑定确认对话框事件监听器');
-                console.log('customConfirmOk元素:', customConfirmOk);
+                // console.log('绑定确认对话框事件监听器');
+                // console.log('customConfirmOk元素:', customConfirmOk);
                 
                 customConfirmOk.addEventListener('click', () => {
-                    console.log('点击了确定按钮');
-                    console.log('当前回调函数:', typeof confirmCallback, confirmCallback);
+                    // console.log('点击了确定按钮');
+                    // console.log('当前回调函数:', typeof confirmCallback, confirmCallback);
                     
                     if (confirmCallback) {
                         console.log('执行回调函数');
