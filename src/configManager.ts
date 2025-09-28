@@ -290,4 +290,36 @@ export class ConfigManager {
     const config = vscode.workspace.getConfiguration(this.SECTION)
     await config.update('showCamelCaseButtons', show, vscode.ConfigurationTarget.Global)
   }
+
+  /**
+   * 获取是否启用悬浮翻译
+   */
+  static getHoverTranslationEnabled(): boolean {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    return config.get('enableHoverTranslation', false)
+  }
+
+  /**
+   * 设置是否启用悬浮翻译
+   */
+  static async setHoverTranslationEnabled(enabled: boolean): Promise<void> {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    await config.update('enableHoverTranslation', enabled, vscode.ConfigurationTarget.Global)
+  }
+
+  /**
+   * 获取悬浮翻译延迟时间（毫秒）
+   */
+  static getHoverTranslationDelay(): number {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    return config.get('hoverTranslationDelay', 500)
+  }
+
+  /**
+   * 设置悬浮翻译延迟时间
+   */
+  static async setHoverTranslationDelay(delay: number): Promise<void> {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    await config.update('hoverTranslationDelay', delay, vscode.ConfigurationTarget.Global)
+  }
 }

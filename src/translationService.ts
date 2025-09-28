@@ -206,11 +206,11 @@ export class TranslationService {
       }
 
       // 打印请求路径和参数
-      console.log('Google翻译API调用:', {
-        url: url,
-        params: params,
-        timestamp: new Date().toISOString(),
-      })
+      //   console.log('Google翻译API调用:', {
+      //     url: url,
+      //     params: params,
+      //     timestamp: new Date().toISOString(),
+      //   })
 
       const response = await axios.get(url, {
         params: params,
@@ -279,11 +279,11 @@ export class TranslationService {
       }
 
       // 打印请求路径和参数
-      console.log('百度翻译API调用:', {
-        url: url,
-        params: { ...params, appid: '***', sign: '***' }, // 隐藏敏感信息
-        timestamp: new Date().toISOString(),
-      })
+      //   console.log('百度翻译API调用:', {
+      //     url: url,
+      //     params: { ...params, appid: '***', sign: '***' }, // 隐藏敏感信息
+      //     timestamp: new Date().toISOString(),
+      //   })
 
       const response = await axios.get(url, {
         params: params,
@@ -358,11 +358,11 @@ export class TranslationService {
       }
 
       // 打印请求路径和参数
-      console.log('有道翻译API调用:', {
-        url: url,
-        params: { ...params, appKey: '***', sign: '***' }, // 隐藏敏感信息
-        timestamp: new Date().toISOString(),
-      })
+      //   console.log('有道翻译API调用:', {
+      //     url: url,
+      //     params: { ...params, appKey: '***', sign: '***' }, // 隐藏敏感信息
+      //     timestamp: new Date().toISOString(),
+      //   })
 
       const response = await axios.post(url, null, {
         params: params,
@@ -472,12 +472,12 @@ export class TranslationService {
         'X-TC-Region': 'ap-guangzhou',
       }
 
-      console.log('腾讯翻译API调用:', {
-        url: url,
-        headers: { ...headers, Authorization: '***' },
-        payload: payload,
-        timestamp: new Date().toISOString(),
-      })
+      //   console.log('腾讯翻译API调用:', {
+      //     url: url,
+      //     headers: { ...headers, Authorization: '***' },
+      //     payload: payload,
+      //     timestamp: new Date().toISOString(),
+      //   })
 
       const response = await axios.post(url, payload, {
         headers: headers,
@@ -564,18 +564,18 @@ export class TranslationService {
       // 直接使用用户填写的Base URL，不进行任何路径处理
       const apiUrl = aiConfig.baseUrl.replace(/\/$/, '') // 只去除尾部斜杠，保持用户原始配置
 
-      console.log('AI翻译API调用:', {
-        baseUrl: aiConfig.baseUrl,
-        finalUrl: apiUrl,
-        model: aiConfig.modelName,
-        vendor: aiConfig.vendor,
-        requestBody: requestBody,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${aiConfig.apiKey.substring(0, 10)}...`, // 只显示API Key前10位
-        },
-        timestamp: new Date().toISOString(),
-      })
+      //   console.log('AI翻译API调用:', {
+      //     baseUrl: aiConfig.baseUrl,
+      //     finalUrl: apiUrl,
+      //     model: aiConfig.modelName,
+      //     vendor: aiConfig.vendor,
+      //     requestBody: requestBody,
+      //     headers: {
+      //       'Content-Type': 'application/json',
+      //       Authorization: `Bearer ${aiConfig.apiKey.substring(0, 10)}...`, // 只显示API Key前10位
+      //     },
+      //     timestamp: new Date().toISOString(),
+      //   })
 
       const response = await axios.post(apiUrl, requestBody, {
         headers: {

@@ -251,6 +251,15 @@ export class TranslationPanelProvider {
       case 'setShowCamelCaseButtons':
         await ConfigManager.setShowCamelCaseButtons(message.show)
         break
+      case 'getEnableHoverTranslation':
+        this._panel.webview.postMessage({
+          type: 'enableHoverTranslation',
+          enabled: ConfigManager.getHoverTranslationEnabled(),
+        })
+        break
+      case 'setEnableHoverTranslation':
+        await ConfigManager.setHoverTranslationEnabled(message.enabled)
+        break
     }
   }
 
@@ -284,6 +293,12 @@ export class TranslationPanelProvider {
     this._panel.webview.postMessage({
       type: 'showCamelCaseButtons',
       show: ConfigManager.getShowCamelCaseButtons(),
+    })
+
+    // 发送悬浮翻译配置
+    this._panel.webview.postMessage({
+      type: 'enableHoverTranslation',
+      enabled: ConfigManager.getHoverTranslationEnabled(),
     })
 
     // 恢复输入文本
@@ -1294,9 +1309,15 @@ export class TranslationPanelProvider {
                     
                     <div class="form-group">
                         <label class="label" for="showCamelCaseButtonsCheckbox">界面设置:</label>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="showCamelCaseButtonsCheckbox" style="margin: 0;">
-                            <label for="showCamelCaseButtonsCheckbox" style="margin: 0; font-weight: normal; font-size: 13px; cursor: pointer;">显示驼峰命名转换按钮（大驼峰、小驼峰等）</label>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="showCamelCaseButtonsCheckbox" style="margin: 0;">
+                                <label for="showCamelCaseButtonsCheckbox" style="margin: 0; font-weight: normal; font-size: 13px; cursor: pointer;">显示驼峰命名转换按钮（大驼峰、小驼峰等）</label>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="enableHoverTranslationCheckbox" style="margin: 0;">
+                                <label for="enableHoverTranslationCheckbox" style="margin: 0; font-weight: normal; font-size: 13px; cursor: pointer;">启用鼠标悬浮翻译（将鼠标悬停在文本上自动翻译）</label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1355,6 +1376,7 @@ export class TranslationPanelProvider {
                 
                 // 界面设置元素
                 const showCamelCaseButtonsCheckbox = document.getElementById('showCamelCaseButtonsCheckbox');
+                const enableHoverTranslationCheckbox = document.getElementById('enableHoverTranslationCheckbox');
                 
                 // 自定义确认对话框元素
                 const customConfirmOverlay = document.getElementById('customConfirmOverlay');
@@ -1384,6 +1406,7 @@ export class TranslationPanelProvider {
                 let isEditingAIConfig = false;
                 let editingConfigId = null;
                 let showCamelCaseButtons = true; // 是否显示驼峰按钮
+                let enableHoverTranslation = false; // 是否启用悬浮翻译
                 
                 // 更新标签文本的函数
                 function updateInputLabel(provider) {
@@ -1889,6 +1912,13 @@ export class TranslationPanelProvider {
                                 updateCamelCaseSectionVisibility();
                             }
                             break;
+                        case 'enableHoverTranslation':
+                            enableHoverTranslation = message.enabled;
+                            // 更新复选框状态（仅在设置页面中）
+                            if (enableHoverTranslationCheckbox) {
+                                enableHoverTranslationCheckbox.checked = enableHoverTranslation;
+                            }
+                            break;
                     }
                 });
                 
@@ -2059,6 +2089,7 @@ export class TranslationPanelProvider {
                     vscode.postMessage({ type: 'getTencentConfig' });
                     vscode.postMessage({ type: 'getAIConfigs' });
                     vscode.postMessage({ type: 'getShowCamelCaseButtons' });
+                    vscode.postMessage({ type: 'getEnableHoverTranslation' });
                 }
                 
                 function showMainPage() {
@@ -2179,6 +2210,13 @@ export class TranslationPanelProvider {
                     if (currentTranslation) {
                         updateCamelCaseSectionVisibility();
                     }
+                });
+
+                // 悬浮翻译配置事件监听器
+                enableHoverTranslationCheckbox.addEventListener('change', () => {
+                    const enabled = enableHoverTranslationCheckbox.checked;
+                    vscode.postMessage({ type: 'setEnableHoverTranslation', enabled: enabled });
+                    enableHoverTranslation = enabled;
                 });
                 
                 // 页面加载完成后通知后端

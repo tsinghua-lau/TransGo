@@ -1,12 +1,40 @@
 import * as vscode from 'vscode'
 import { ConfigManager } from './configManager'
+import { TranslationHoverProvider } from './hoverProvider'
 import { TranslationPanelProvider } from './translationPanel'
 
 export function activate(context: vscode.ExtensionContext) {
+  // 注册悬浮翻译提供器 - 尝试多种语言特定注册以提高优先级
+  const hoverProvider = new TranslationHoverProvider(context.extensionUri)
+
+  // 为特定语言注册，优先级更高
+  const languages = ['typescript', 'javascript', 'html', 'css', 'json', 'markdown', 'plaintext']
+  languages.forEach((lang) => {
+    context.subscriptions.push(vscode.languages.registerHoverProvider(lang, hoverProvider))
+  })
+
+  // 通用注册作为备选
+  //   context.subscriptions.push(
+  //     vscode.languages.registerHoverProvider(
+  //       [
+  //         { scheme: 'file', language: '*' },
+  //         { scheme: 'untitled', language: '*' },
+  //       ],
+  //       hoverProvider
+  //     )
+  //   )
+
   context.subscriptions.push(
     vscode.commands.registerCommand('translate.openView', () => {
       // 打开翻译面板
       TranslationPanelProvider.createOrShow(context.extensionUri)
+    })
+  )
+
+  // 注册复制命令（用于悬浮翻译的复制按钮）
+  context.subscriptions.push(
+    vscode.commands.registerCommand('transgo.copyText', (text: string) => {
+      vscode.env.clipboard.writeText(text)
     })
   )
 
