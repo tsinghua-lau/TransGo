@@ -218,11 +218,11 @@ export class TranslationService {
       })
 
       // 打印返回结果
-      console.log('Google翻译API返回:', {
-        status: response.status,
-        data: response.data,
-        timestamp: new Date().toISOString(),
-      })
+      //   console.log('Google翻译API返回:', {
+      //     status: response.status,
+      //     data: response.data,
+      //     timestamp: new Date().toISOString(),
+      //   })
 
       if (response.data && response.data[0]) {
         // 处理多段话的情况，需要合并所有翻译片段
@@ -291,11 +291,11 @@ export class TranslationService {
       })
 
       // 打印返回结果
-      console.log('百度翻译API返回:', {
-        status: response.status,
-        data: response.data,
-        timestamp: new Date().toISOString(),
-      })
+      //   console.log('百度翻译API返回:', {
+      //     status: response.status,
+      //     data: response.data,
+      //     timestamp: new Date().toISOString(),
+      //   })
 
       if (response.data && response.data.trans_result && response.data.trans_result[0]) {
         return response.data.trans_result[0].dst
@@ -370,11 +370,11 @@ export class TranslationService {
       })
 
       // 打印返回结果
-      console.log('有道翻译API返回:', {
-        status: response.status,
-        data: response.data,
-        timestamp: new Date().toISOString(),
-      })
+      //   console.log('有道翻译API返回:', {
+      //     status: response.status,
+      //     data: response.data,
+      //     timestamp: new Date().toISOString(),
+      //   })
 
       if (response.data && response.data.errorCode === '0') {
         if (response.data.translation && response.data.translation.length > 0) {
@@ -484,11 +484,11 @@ export class TranslationService {
         timeout: 10000,
       })
 
-      console.log('腾讯翻译API返回:', {
-        status: response.status,
-        data: response.data,
-        timestamp: new Date().toISOString(),
-      })
+      //   console.log('腾讯翻译API返回:', {
+      //     status: response.status,
+      //     data: response.data,
+      //     timestamp: new Date().toISOString(),
+      //   })
 
       if (response.data && response.data.Response) {
         if (response.data.Response.Error) {
@@ -585,21 +585,21 @@ export class TranslationService {
         timeout: 30000,
       })
 
-      console.log('AI翻译API返回:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: response.headers,
-        data: response.data,
-        timestamp: new Date().toISOString(),
-      })
+      //   console.log('AI翻译API返回:', {
+      //     status: response.status,
+      //     statusText: response.statusText,
+      //     headers: response.headers,
+      //     data: response.data,
+      //     timestamp: new Date().toISOString(),
+      //   })
 
       if (response.data && response.data.choices && response.data.choices.length > 0) {
         const result = response.data.choices[0].message?.content || ''
-        console.log('AI翻译成功:', {
-          result: result,
-          resultLength: result.length,
-          timestamp: new Date().toISOString(),
-        })
+        // console.log('AI翻译成功:', {
+        //   result: result,
+        //   resultLength: result.length,
+        //   timestamp: new Date().toISOString(),
+        // })
         if (result.trim()) {
           return result.trim()
         }

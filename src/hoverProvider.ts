@@ -156,7 +156,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
 
     // 尝试使用扩展URI来显示logo
     if (extensionUri) {
-      const logoUri = vscode.Uri.joinPath(extensionUri, 'src', 'images', 'logo-a.png')
+      const logoUri = vscode.Uri.joinPath(extensionUri, 'src', 'images', 'logo.png')
       markdown.appendMarkdown(`<img src="${logoUri.toString()}" width="16" height="10" style="vertical-align: middle;"> **${providerName}:**\n\n`)
     } else {
       markdown.appendMarkdown(`**${providerName}:**\n\n`)
@@ -167,7 +167,8 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
     markdown.appendMarkdown(`\n\n`)
 
     // 添加复制按钮
-    const copyCommand = `command:transgo.copyText?${encodeURIComponent(JSON.stringify([translationResult.translatedText]))}`
+    const copyArgs = JSON.stringify([translationResult.translatedText])
+    const copyCommand = `command:transgo.copyText?${encodeURIComponent(copyArgs)}`
     if (extensionUri) {
       const copyIconUri = vscode.Uri.joinPath(extensionUri, 'src', 'images', 'copy.png')
       markdown.appendMarkdown(`[<img src="${copyIconUri.toString()}" width="16" height="16" align="absmiddle">&nbsp;复制](${copyCommand} "复制翻译结果")\n\n`)

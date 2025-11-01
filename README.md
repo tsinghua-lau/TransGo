@@ -1,28 +1,32 @@
 # TransGo
 
-TransGo 是一个专业的 VS Code 翻译插件，支持中英文互译、语音朗读、转驼峰命名等功能，现已全面支持主流 AI 翻译服务。
+TransGo 是一个免费专业的翻译插件，支持对话翻译、悬浮翻译、语音朗读、转驼峰命名等功能，现已全面支持主流 AI 翻译服务。
 
 > ![提示](https://img.shields.io/badge/Tip-提示-blue?style=flat-square)  
 > 如果升级后无法使用，卸载重新安装即可。
+> 悬浮翻译功能需要在设置中开启。
 
-![插件演示](https://i-blog.csdnimg.cn/direct/6c65e6fbff5f434ba8e3f20b58604dbf.gif#pic_center)
+![GitHub 演示](https://github.com/tsinghua-lau/TransGo/blob/master/preview.gif?raw=true)
 
 默认使用 `Google翻译` 无需配置即可翻译（需要科学上网）
 
 ## 功能特点
 
 - VSCode 右侧边栏交互不影响主工作区交互
+
 - 自动识别中英文并进行相互翻译
-- 翻译语音播放
+- 悬浮翻译（鼠标悬停显示翻译结果）
+- 翻译语音朗读
 - 翻译结果大小驼峰转换
 - 支持多种翻译服务：Google、百度、有道、腾讯、AI 大模型
+- 自定义配置 AI 大模型翻译提示词，多样化翻译
 - 简洁美观的界面设计
 
 ## 目录
 
 - [安装使用](#安装使用)
+- [传统翻译配置](#传统翻译服务)
 - [AI 翻译配置](#ai-翻译配置)
-- [传统翻译服务](#传统翻译服务)
 - [常用配置模板](#常用配置模板)
 - [常见问题](#常见问题)
 - [版本更新](#版本更新)
@@ -38,6 +42,17 @@ TransGo 是一个专业的 VS Code 翻译插件，支持中英文互译、语音
 - **编辑器右键**: 选中文本后右键选择"翻译选中文本"
 - **编辑器顶部**: 点击编辑器标题栏的翻译图标
 - **命令面板**: `Ctrl+Shift+P` → `打开翻译`
+
+## 传统翻译服务
+
+> ![提示](https://img.shields.io/badge/Tip-提示-blue?style=flat-square)  
+> 正常使用情况下提供的免费翻译额度完全够日常使用。
+
+选择翻译服务打开官网获取 API Key：
+
+- [百度翻译](https://fanyi-api.baidu.com/) - 需要配置 APPID 和密钥
+- [有道翻译](https://ai.youdao.com/) - 需要配置 AppKey 和 AppSecret
+- [腾讯翻译](https://console.cloud.tencent.com/cam/capi) - 需要配置 SecretId 和 SecretKey
 
 ## AI 翻译配置
 
@@ -130,14 +145,6 @@ Groq: https://api.groq.com/openai/v1/chat/completions
 
 {text}
 ```
-
-## 传统翻译服务
-
-选择传统翻译服务需要配置相应的 API Key：
-
-- [百度翻译](https://fanyi-api.baidu.com/) - 需要配置 APPID 和密钥
-- [有道翻译](https://ai.youdao.com/) - 需要配置 AppKey 和 AppSecret
-- [腾讯翻译](https://console.cloud.tencent.com/cam/capi) - 需要配置 SecretId 和 SecretKey
 
 ## 常用配置模板
 
@@ -248,7 +255,15 @@ A: 建议：
 
 ## 版本更新
 
-### v1.0.5
+### v1.0.9
+
+- ✅ 修复 bug，提升稳定性
+
+### v1.0.7
+
+- ✅ 修复 bug，提升稳定性
+
+### v1.0.6
 
 - ✅ 新增鼠标悬停翻译
 

@@ -19,7 +19,8 @@ export class TranslationPanelProvider {
   }
 
   public static createOrShow(extensionUri: vscode.Uri, selectedText?: string) {
-    const column = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : undefined
+    // 使用Beside列创建更窄的面板，如果没有活动编辑器则在右侧创建一个较窄的面板
+    const column = vscode.ViewColumn.Beside
 
     // 如果已经有面板存在，就显示它
     if (TranslationPanelProvider.currentPanel) {
@@ -32,8 +33,8 @@ export class TranslationPanelProvider {
       return
     }
 
-    // 创建新的面板
-    const panel = vscode.window.createWebviewPanel('translatePanel', 'TransGo', column || vscode.ViewColumn.One, {
+    // 创建新的面板，使用Beside列来获得更窄的默认宽度
+    const panel = vscode.window.createWebviewPanel('translatePanel', 'TransGo', column, {
       enableScripts: true,
       localResourceRoots: [extensionUri],
       retainContextWhenHidden: true, // 保持上下文，避免重新加载时丢失状态
@@ -107,14 +108,14 @@ export class TranslationPanelProvider {
     if (!this.translationState.inputText) {
       this.translationState = savedState
     }
-    console.log('TransGo Panel: 加载翻译状态:', savedState)
+    // console.log('TransGo Panel: 加载翻译状态:', savedState)
   }
 
   private async handleMessage(message: any) {
-    console.log('后端收到消息:', message.type, message)
+    // console.log('后端收到消息:', message.type, message)
     switch (message.type) {
       case 'webviewReady':
-        console.log('TransGo Panel: Webview已准备好，开始恢复状态')
+        // console.log('TransGo Panel: Webview已准备好，开始恢复状态')
         this.restoreState()
         break
       case 'translate':
@@ -413,6 +414,10 @@ export class TranslationPanelProvider {
     const doneIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'done.svg')
     const doneIconUri = webview.asWebviewUri(doneIconPath)
 
+    // 传统翻译logo图片
+    const traditionLogoPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'tradition.svg')
+    const traditionLogoUri = webview.asWebviewUri(traditionLogoPath)
+
     // AI翻译logo图片
     const aiIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'ai.svg')
     const aiIconUri = webview.asWebviewUri(aiIconPath)
@@ -497,7 +502,6 @@ export class TranslationPanelProvider {
                     width: 16px;
                     height: 16px;
                     margin-right: 6px;
-                    opacity: 0.8;
                 }
                 
                 .input-container {
@@ -668,7 +672,8 @@ export class TranslationPanelProvider {
                 .btn-camel-case {
                     font-size: 11px;
                     font-weight: 500;
-                    background: var(--vscode-button-secondaryBackground);
+                    background:#292929;
+                    // background: var(--vscode-button-secondaryBackground);
                     border: 1px solid var(--vscode-button-border);
                     color: var(--vscode-button-secondaryForeground);
                     cursor: pointer;
@@ -1428,11 +1433,13 @@ export class TranslationPanelProvider {
                         }
                     }
                     
-                    // 如果是AI翻译，在名称前添加AI图标
+                    // 在名称前图标
                     if (provider === 'ai') {
-                        inputLabel.innerHTML = '<img src="' + aiIconUri + '" class="ai-icon" alt="AI" />' + providerName + ':';
+                        inputLabel.innerHTML = '<img src="' + aiIconUri + '" class="ai-icon" alt="AI" />' + providerName;
                     } else {
-                        inputLabel.textContent = providerName + ':';
+                        inputLabel.innerHTML = '<img src="' + traditionLogoUri + '" class="ai-icon" alt="AI" />' + providerName;
+
+                        // inputLabel.textContent = providerName;
                     }
                 }
                 
@@ -1517,7 +1524,7 @@ export class TranslationPanelProvider {
                     const html = aiConfigs.map(config => {
                         const isSelected = config.id === currentAIConfigId;
                         const actionButton = isSelected ? 
-                            '<button class="ai-config-action-btn selected-btn">已选中</button>' : 
+                            '<button class="ai-config-action-btn selected-btn">当前</button>' : 
                             '<button class="ai-config-action-btn select-btn" data-action="select" data-config-id="' + escapeHtml(config.id) + '">选择</button>';
                         
                         return '<div class="ai-config-item ' + (isSelected ? 'selected' : '') + '" data-config-id="' + escapeHtml(config.id) + '">' +
@@ -1650,6 +1657,7 @@ export class TranslationPanelProvider {
                 const sendIconUri = '${sendIconUri}';
                 const loadingIconUri = '${loadingIconUri}';
                 const aiIconUri = '${aiIconUri}';
+                const traditionLogoUri = '${traditionLogoUri}';
                 
                 // 翻译功能
                 function performTranslation() {
@@ -1748,7 +1756,7 @@ export class TranslationPanelProvider {
                     try {
                         await navigator.clipboard.writeText(currentTranslation);
                         copyBtn.classList.add('copied');
-                        setTimeout(() => copyBtn.classList.remove('copied'), 1000);
+                        setTimeout(() => copyBtn.classList.remove('copied'), 200);
                     } catch (err) {
                         // 降级方案
                         const textArea = document.createElement('textarea');
@@ -1758,7 +1766,7 @@ export class TranslationPanelProvider {
                         document.execCommand('copy');
                         document.body.removeChild(textArea);
                         copyBtn.classList.add('copied');
-                        setTimeout(() => copyBtn.classList.remove('copied'), 1000);
+                        setTimeout(() => copyBtn.classList.remove('copied'), 200);
                     }
                 });
                 
@@ -1770,7 +1778,7 @@ export class TranslationPanelProvider {
                     try {
                         await navigator.clipboard.writeText(camelText);
                         camelCopyBtn.classList.add('copied');
-                        setTimeout(() => camelCopyBtn.classList.remove('copied'), 1000);
+                        setTimeout(() => camelCopyBtn.classList.remove('copied'), 200);
                     } catch (err) {
                         // 降级方案
                         const textArea = document.createElement('textarea');
@@ -1780,7 +1788,7 @@ export class TranslationPanelProvider {
                         document.execCommand('copy');
                         document.body.removeChild(textArea);
                         camelCopyBtn.classList.add('copied');
-                        setTimeout(() => camelCopyBtn.classList.remove('copied'), 1000);
+                        setTimeout(() => camelCopyBtn.classList.remove('copied'), 200);
                     }
                 });
                 
@@ -1868,7 +1876,7 @@ export class TranslationPanelProvider {
                             }
                             break;
                         case 'aiConfigs':
-                            console.log('前端接收到aiConfigs消息:', message.configs);
+                            // console.log('前端接收到aiConfigs消息:', message.configs);
                             aiConfigs = message.configs || [];
                             // 获取当前选中的配置ID
                             const currentConfig = aiConfigs.find(config => config.id === currentAIConfigId);
@@ -2099,7 +2107,49 @@ export class TranslationPanelProvider {
                 
                 // 设置按钮事件
                 settingsBtn.addEventListener('click', showSettingsPage);
-                doneBtn.addEventListener('click', showMainPage);
+                doneBtn.addEventListener('click', () => {
+                    // 检查当前选择的翻译服务是否需要校验配置
+                    const currentProvider = providerSelect.value;
+                    let isConfigValid = true;
+                    let errorMessage = '';
+                    
+                    if (currentProvider === 'baidu') {
+                        if (!baiduAppid.value.trim() || !baiduAppkey.value.trim()) {
+                            isConfigValid = false;
+                            errorMessage = '请填写百度翻译的APPID和密钥';
+                        }
+                    } else if (currentProvider === 'youdao') {
+                        if (!youdaoAppKey.value.trim() || !youdaoAppSecret.value.trim()) {
+                            isConfigValid = false;
+                            errorMessage = '请填写有道翻译的AppKey和AppSecret';
+                        }
+                    } else if (currentProvider === 'tencent') {
+                        if (!tencentSecretId.value.trim() || !tencentSecretKey.value.trim()) {
+                            isConfigValid = false;
+                            errorMessage = '请填写腾讯翻译的SecretId和SecretKey';
+                        }
+                    } else if (currentProvider === 'ai') {
+                        if (!currentAIConfigId || aiConfigs.length === 0) {
+                            isConfigValid = false;
+                            errorMessage = '请添加并选择一个AI翻译配置';
+                        }
+                    }
+                    
+                    if (!isConfigValid) {
+                        // 显示错误提示
+                        showCustomConfirm(
+                            '配置不完整',
+                            errorMessage + '。请完成配置后再继续。',
+                            () => {
+                                // 用户点击确定后不做任何操作，让用户继续填写配置
+                            }
+                        );
+                        return;
+                    }
+                    
+                    // 配置完整，返回主页面
+                    showMainPage();
+                });
                 
                 // 翻译源选择
                 providerSelect.addEventListener('change', () => {

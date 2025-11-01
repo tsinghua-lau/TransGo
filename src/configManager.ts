@@ -293,10 +293,13 @@ export class ConfigManager {
 
   /**
    * 获取是否启用悬浮翻译
+   * 使用三重保护：配置默认值 + API默认值 + 代码兜底
    */
   static getHoverTranslationEnabled(): boolean {
     const config = vscode.workspace.getConfiguration(this.SECTION)
-    return config.get('enableHoverTranslation', false)
+    const value = config.get('enableHoverTranslation', true)
+    // 三重保护：确保返回值为布尔类型，兜底默认为 true（新版本默认开启）
+    return value === true || value === false ? value : true
   }
 
   /**
@@ -309,10 +312,13 @@ export class ConfigManager {
 
   /**
    * 获取悬浮翻译延迟时间（毫秒）
+   * 使用三重保护确保返回有效的数值
    */
   static getHoverTranslationDelay(): number {
     const config = vscode.workspace.getConfiguration(this.SECTION)
-    return config.get('hoverTranslationDelay', 500)
+    const value = config.get('hoverTranslationDelay', 500)
+    // 确保返回值为有效数字，范围在100-2000毫秒之间
+    return typeof value === 'number' && value >= 100 && value <= 2000 ? value : 500
   }
 
   /**

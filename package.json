@@ -2,7 +2,7 @@
   "name": "TransGo",
   "displayName": "中英文翻译",
   "description": "侧边栏中英文翻译插件，支持对话翻译、悬浮翻译、朗读、转为驼峰下划线等，现已支持AI翻译（ChatGPT、Claude等）",
-  "version": "1.0.6",
+  "version": "1.0.9",
   "publisher": "tsinghua-lau",
   "engines": {
     "vscode": "^1.74.0"
@@ -86,7 +86,7 @@
         },
         "transgo.enableHoverTranslation": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "启用鼠标悬浮翻译"
         },
         "transgo.hoverTranslationDelay": {
@@ -107,12 +107,12 @@
       {
         "command": "translate.quickTranslate",
         "title": "快速翻译",
-        "icon": "src/images/logo-a.png"
+        "icon": "src/images/logo.png"
       },
       {
         "command": "translate.translateSelection",
         "title": "翻译选中文本",
-        "icon": "src/images/logo.svg"
+        "icon": "src/images/tradition.svg"
       },
       {
         "command": "transgo.copyText",
@@ -140,7 +140,8 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "build": "vsce package"
   },
   "repository": {
     "url": "https://github.com/tsinghua-lau/TransGo"
@@ -157,6 +158,19 @@
   },
   "icon": "src/images/logo.png",
   "keywords": [
+    "翻译",
+    "translate",
+    "hover translate",
+    "悬浮翻译",
+    "baidu translate",
+    "百度翻译",
+    "ai翻译",
+    "AI translate",
+    "大模型翻译",
+    "chatgpt translate",
+    "google translate",
+    "谷歌翻译",
+    "language",
     "translate",
     "translation",
     "chinese",

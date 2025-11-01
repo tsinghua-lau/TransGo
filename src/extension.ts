@@ -4,25 +4,22 @@ import { TranslationHoverProvider } from './hoverProvider'
 import { TranslationPanelProvider } from './translationPanel'
 
 export function activate(context: vscode.ExtensionContext) {
-  // 注册悬浮翻译提供器 - 尝试多种语言特定注册以提高优先级
+  // 注册悬浮翻译提供器 - 支持所有文件类型
   const hoverProvider = new TranslationHoverProvider(context.extensionUri)
 
-  // 为特定语言注册，优先级更高
-  const languages = ['typescript', 'javascript', 'html', 'css', 'json', 'markdown', 'plaintext']
-  languages.forEach((lang) => {
-    context.subscriptions.push(vscode.languages.registerHoverProvider(lang, hoverProvider))
-  })
-
-  // 通用注册作为备选
-  //   context.subscriptions.push(
-  //     vscode.languages.registerHoverProvider(
-  //       [
-  //         { scheme: 'file', language: '*' },
-  //         { scheme: 'untitled', language: '*' },
-  //       ],
-  //       hoverProvider
-  //     )
-  //   )
+  // 注册为支持所有文件类型的悬浮翻译提供器
+  context.subscriptions.push(
+    vscode.languages.registerHoverProvider(
+      [
+        { scheme: 'file' }, // 支持所有本地文件
+        { scheme: 'untitled' }, // 支持未保存的文件
+        { scheme: 'vscode-vfs' }, // 支持虚拟文件系统
+        { scheme: 'git' }, // 支持Git文件
+        { scheme: 'output' }, // 支持输出面板
+      ],
+      hoverProvider
+    )
+  )
 
   context.subscriptions.push(
     vscode.commands.registerCommand('translate.openView', () => {
@@ -35,6 +32,36 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('transgo.copyText', (text: string) => {
       vscode.env.clipboard.writeText(text)
+
+      // 使用 withProgress 显示进度提示
+      vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: '已复制到剪贴板',
+          cancellable: false,
+        },
+        (progress) => {
+          return new Promise((resolve) => {
+            let currentProgress = 0
+            const totalDuration = 1500 // 总持续时间1.5秒
+            const updateInterval = 50 // 每50毫秒更新一次进度
+            const progressIncrement = 100 / (totalDuration / updateInterval) // 每次增加的进度
+
+            const timer = setInterval(() => {
+              currentProgress += progressIncrement
+              if (currentProgress >= 100) {
+                currentProgress = 100
+                clearInterval(timer)
+                setTimeout(resolve, 100) // 稍微延迟一下再关闭
+              }
+
+              progress.report({
+                increment: progressIncrement,
+              })
+            }, updateInterval)
+          })
+        }
+      )
     })
   )
 
@@ -84,7 +111,7 @@ export function activate(context: vscode.ExtensionContext) {
   // 监听配置变化
   context.subscriptions.push(
     ConfigManager.onConfigurationChanged((e) => {
-      console.log('配置已更改，重新加载配置')
+      //   console.log('配置已更改，重新加载配置')
       // 可以在这里添加配置变化时的处理逻辑
     })
   )
