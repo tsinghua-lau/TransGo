@@ -35,9 +35,18 @@ export class TranslationService {
       return text
     }
 
+    // 先保留换行符，将换行符替换为特殊标记
+    const newlineMarker = '<<<NEWLINE>>>'
+    text = text.replace(/\r?\n/g, newlineMarker)
+
     // 下划线，连接线，小数点自动替换成空格
     text = text.replace(/_|-|\./g, ' ')
     const group = text.split(' ').map((txt) => {
+      // 跳过换行标记，不做处理
+      if (txt === newlineMarker) {
+        return txt
+      }
+
       // 连续的大写字母，不需要处理
       const txtGroup: string[] = []
       for (let i = 0; i < txt.length; i++) {
@@ -61,13 +70,20 @@ export class TranslationService {
     })
     let str = ''
     group.forEach((txt, idx) => {
-      if (idx === group.length - 1) {
+      if (txt === newlineMarker) {
+        // 遇到换行标记，添加换行符
+        str += '\n'
+      } else if (idx === group.length - 1) {
         // 最后一个不需要空格
         str += txt.trim()
       } else {
         str += txt.trim() + ' '
       }
     })
+
+    // 恢复换行符（防止有遗漏的标记）
+    str = str.replace(new RegExp(newlineMarker, 'g'), '\n')
+
     return str
   }
 
@@ -148,11 +164,11 @@ export class TranslationService {
     let cleanedText = text
     if (!isChineseText) {
       cleanedText = this.englishClearSelectionText(text)
-      console.log('英文文本清洗:', {
-        original: text,
-        cleaned: cleanedText,
-        timestamp: new Date().toISOString(),
-      })
+      //   console.log('英文文本清洗:', {
+      //     original: text,
+      //     cleaned: cleanedText,
+      //     timestamp: new Date().toISOString(),
+      //   })
     }
 
     try {
@@ -297,8 +313,13 @@ export class TranslationService {
       //     timestamp: new Date().toISOString(),
       //   })
 
-      if (response.data && response.data.trans_result && response.data.trans_result[0]) {
-        return response.data.trans_result[0].dst
+      if (response.data && Array.isArray(response.data.trans_result) && response.data.trans_result.length > 0) {
+        const segments = response.data.trans_result.map((item: { dst?: string }) => item?.dst).filter((dst: any): dst is string => !!dst)
+
+        if (segments.length > 0) {
+          // 将百度返回的分段结果合并，保持多行内容
+          return segments.join('\n')
+        }
       }
 
       if (response.data && response.data.error_code) {
