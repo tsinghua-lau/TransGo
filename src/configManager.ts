@@ -12,9 +12,29 @@ export interface AITranslationConfig {
 
 /**
  * 配置管理器，负责处理所有与VS Code settings.json相关的配置操作
+ * 敏感信息（密钥）使用 SecretStorage 安全存储
  */
 export class ConfigManager {
   private static readonly SECTION = 'transgo'
+  private static context: vscode.ExtensionContext
+
+  /**
+   * 初始化配置管理器
+   * 必须在 extension activate 时调用
+   */
+  static initialize(context: vscode.ExtensionContext): void {
+    this.context = context
+  }
+
+  /**
+   * 获取 SecretStorage 实例
+   */
+  private static getSecrets(): vscode.SecretStorage {
+    if (!this.context) {
+      throw new Error('ConfigManager 未初始化，请先调用 initialize()')
+    }
+    return this.context.secrets
+  }
 
   /**
    * 获取当前翻译服务提供商
@@ -35,11 +55,12 @@ export class ConfigManager {
   /**
    * 获取百度翻译配置
    */
-  static getBaiduConfig(): { appid: string; appkey: string } {
+  static async getBaiduConfig(): Promise<{ appid: string; appkey: string }> {
     const config = vscode.workspace.getConfiguration(this.SECTION)
+    const appkey = (await this.getSecrets().get('transgo.baidu.appkey')) || ''
     return {
       appid: config.get('baidu.appid', ''),
-      appkey: config.get('baidu.appkey', ''),
+      appkey,
     }
   }
 
@@ -49,17 +70,18 @@ export class ConfigManager {
   static async setBaiduConfig(appid: string, appkey: string): Promise<void> {
     const config = vscode.workspace.getConfiguration(this.SECTION)
     await config.update('baidu.appid', appid, vscode.ConfigurationTarget.Global)
-    await config.update('baidu.appkey', appkey, vscode.ConfigurationTarget.Global)
+    await this.getSecrets().store('transgo.baidu.appkey', appkey)
   }
 
   /**
    * 获取有道翻译配置
    */
-  static getYoudaoConfig(): { appKey: string; appSecret: string } {
+  static async getYoudaoConfig(): Promise<{ appKey: string; appSecret: string }> {
     const config = vscode.workspace.getConfiguration(this.SECTION)
+    const appSecret = (await this.getSecrets().get('transgo.youdao.appsecret')) || ''
     return {
       appKey: config.get('youdao.appkey', ''),
-      appSecret: config.get('youdao.appsecret', ''),
+      appSecret,
     }
   }
 
@@ -69,17 +91,18 @@ export class ConfigManager {
   static async setYoudaoConfig(appKey: string, appSecret: string): Promise<void> {
     const config = vscode.workspace.getConfiguration(this.SECTION)
     await config.update('youdao.appkey', appKey, vscode.ConfigurationTarget.Global)
-    await config.update('youdao.appsecret', appSecret, vscode.ConfigurationTarget.Global)
+    await this.getSecrets().store('transgo.youdao.appsecret', appSecret)
   }
 
   /**
    * 获取腾讯翻译配置
    */
-  static getTencentConfig(): { secretId: string; secretKey: string } {
+  static async getTencentConfig(): Promise<{ secretId: string; secretKey: string }> {
     const config = vscode.workspace.getConfiguration(this.SECTION)
+    const secretKey = (await this.getSecrets().get('transgo.tencent.secretkey')) || ''
     return {
       secretId: config.get('tencent.secretid', ''),
-      secretKey: config.get('tencent.secretkey', ''),
+      secretKey,
     }
   }
 
@@ -89,31 +112,55 @@ export class ConfigManager {
   static async setTencentConfig(secretId: string, secretKey: string): Promise<void> {
     const config = vscode.workspace.getConfiguration(this.SECTION)
     await config.update('tencent.secretid', secretId, vscode.ConfigurationTarget.Global)
-    await config.update('tencent.secretkey', secretKey, vscode.ConfigurationTarget.Global)
+    await this.getSecrets().store('transgo.tencent.secretkey', secretKey)
   }
 
   /**
-   * 获取AI翻译配置列表
+   * 获取AI翻译配置列表（不包含apiKey）
    */
-  static getAIConfigs(): AITranslationConfig[] {
+  static getAIConfigs(): Omit<AITranslationConfig, 'apiKey'>[] {
     const config = vscode.workspace.getConfiguration(this.SECTION)
     return config.get('ai.configs', [])
   }
 
   /**
-   * 设置AI翻译配置列表
+   * 获取完整的AI翻译配置列表（包含从SecretStorage读取的apiKey）
+   */
+  static async getAIConfigsWithSecrets(): Promise<AITranslationConfig[]> {
+    const configs = this.getAIConfigs()
+    const configsWithKeys = await Promise.all(
+      configs.map(async (config) => {
+        const apiKey = (await this.getSecrets().get(`transgo.ai.config.${config.id}.apiKey`)) || ''
+        return { ...config, apiKey }
+      })
+    )
+    return configsWithKeys
+  }
+
+  /**
+   * 设置AI翻译配置列表（apiKey单独存储到SecretStorage）
    */
   static async setAIConfigs(configs: AITranslationConfig[]): Promise<void> {
     const config = vscode.workspace.getConfiguration(this.SECTION)
-    await config.update('ai.configs', configs, vscode.ConfigurationTarget.Global)
+    
+    // 分离 apiKey 和其他配置
+    const configsWithoutKeys = configs.map(({ apiKey, ...rest }) => rest)
+    await config.update('ai.configs', configsWithoutKeys, vscode.ConfigurationTarget.Global)
+    
+    // 将 apiKey 存储到 SecretStorage
+    for (const cfg of configs) {
+      if (cfg.apiKey) {
+        await this.getSecrets().store(`transgo.ai.config.${cfg.id}.apiKey`, cfg.apiKey)
+      }
+    }
   }
 
   /**
    * 添加AI翻译配置
    */
   static async addAIConfig(newConfig: AITranslationConfig): Promise<void> {
-    const configs = this.getAIConfigs()
-    const existingIndex = configs.findIndex(c => c.id === newConfig.id)
+    const configs = await this.getAIConfigsWithSecrets()
+    const existingIndex = configs.findIndex((c) => c.id === newConfig.id)
     if (existingIndex >= 0) {
       configs[existingIndex] = newConfig
     } else {
@@ -127,19 +174,22 @@ export class ConfigManager {
    */
   static async removeAIConfig(configId: string): Promise<void> {
     console.log('ConfigManager: 开始删除AI配置，ID:', configId)
-    const configs = this.getAIConfigs()
+    const configs = await this.getAIConfigsWithSecrets()
     console.log('删除前的配置列表:', configs)
-    
-    const filteredConfigs = configs.filter(c => c.id !== configId)
+
+    const filteredConfigs = configs.filter((c) => c.id !== configId)
     console.log('过滤后的配置列表:', filteredConfigs)
-    
+
     await this.setAIConfigs(filteredConfigs)
-    console.log('配置已保存到VSCode设置')
     
+    // 删除对应的 apiKey
+    await this.getSecrets().delete(`transgo.ai.config.${configId}.apiKey`)
+    console.log('配置已保存到VSCode设置')
+
     // 如果删除的是当前选中的配置，需要更新选中状态
     const currentConfigId = this.getCurrentAIConfigId()
     console.log('当前选中的配置ID:', currentConfigId)
-    
+
     if (currentConfigId === configId) {
       console.log('删除的是当前选中的配置，需要更新选中状态')
       if (filteredConfigs.length > 0) {
@@ -174,30 +224,30 @@ export class ConfigManager {
   /**
    * 获取当前AI翻译配置
    */
-  static getCurrentAIConfig(): AITranslationConfig | null {
-    const configs = this.getAIConfigs()
+  static async getCurrentAIConfig(): Promise<AITranslationConfig | null> {
+    const configs = await this.getAIConfigsWithSecrets()
     const currentId = this.getCurrentAIConfigId()
-    return configs.find(c => c.id === currentId) || null
+    return configs.find((c) => c.id === currentId) || null
   }
 
   /**
    * 检查当前配置是否完整
    */
-  static isConfigured(): boolean {
+  static async isConfigured(): Promise<boolean> {
     const provider = this.getProvider()
 
     switch (provider) {
       case 'baidu':
-        const baiduConfig = this.getBaiduConfig()
+        const baiduConfig = await this.getBaiduConfig()
         return baiduConfig.appid.length > 0 && baiduConfig.appkey.length > 0
       case 'youdao':
-        const youdaoConfig = this.getYoudaoConfig()
+        const youdaoConfig = await this.getYoudaoConfig()
         return youdaoConfig.appKey.length > 0 && youdaoConfig.appSecret.length > 0
       case 'tencent':
-        const tencentConfig = this.getTencentConfig()
+        const tencentConfig = await this.getTencentConfig()
         return tencentConfig.secretId.length > 0 && tencentConfig.secretKey.length > 0
       case 'ai':
-        const aiConfig = this.getCurrentAIConfig()
+        const aiConfig = await this.getCurrentAIConfig()
         return aiConfig !== null && aiConfig.baseUrl.length > 0 && aiConfig.apiKey.length > 0 && aiConfig.modelName.length > 0
       case 'google':
       default:
@@ -212,13 +262,23 @@ export class ConfigManager {
     const config = vscode.workspace.getConfiguration(this.SECTION)
     await config.update('provider', 'google', vscode.ConfigurationTarget.Global)
     await config.update('baidu.appid', '', vscode.ConfigurationTarget.Global)
-    await config.update('baidu.appkey', '', vscode.ConfigurationTarget.Global)
     await config.update('youdao.appkey', '', vscode.ConfigurationTarget.Global)
-    await config.update('youdao.appsecret', '', vscode.ConfigurationTarget.Global)
     await config.update('tencent.secretid', '', vscode.ConfigurationTarget.Global)
-    await config.update('tencent.secretkey', '', vscode.ConfigurationTarget.Global)
     await config.update('ai.configs', [], vscode.ConfigurationTarget.Global)
     await config.update('ai.currentConfigId', '', vscode.ConfigurationTarget.Global)
+    
+    // 清除所有存储在 SecretStorage 中的密钥
+    const secrets = this.getSecrets()
+    await secrets.delete('transgo.baidu.appkey')
+    await secrets.delete('transgo.youdao.appsecret')
+    await secrets.delete('transgo.tencent.secretkey')
+    await secrets.delete('transgo.tts.tencent.secretKey')
+    
+    // 清除所有 AI 配置的 apiKey
+    const configs = this.getAIConfigs()
+    for (const cfg of configs) {
+      await secrets.delete(`transgo.ai.config.${cfg.id}.apiKey`)
+    }
   }
 
   /**
@@ -237,7 +297,7 @@ export class ConfigManager {
    */
   static async saveTranslationState(state: { inputText: string; translationResult: any; camelCaseResult: string }): Promise<void> {
     const config = vscode.workspace.getConfiguration(this.SECTION)
-    console.log('ConfigManager: 保存状态到配置:', state)
+    // console.log('ConfigManager: 保存状态到配置:', state)
     await config.update('state', state, vscode.ConfigurationTarget.Global)
   }
 
@@ -327,5 +387,44 @@ export class ConfigManager {
   static async setHoverTranslationDelay(delay: number): Promise<void> {
     const config = vscode.workspace.getConfiguration(this.SECTION)
     await config.update('hoverTranslationDelay', delay, vscode.ConfigurationTarget.Global)
+  }
+
+  /**
+   * 获取TTS服务提供商
+   */
+  static getTTSProvider(): string {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    return config.get('tts.provider', 'system')
+  }
+
+  /**
+   * 设置TTS服务提供商
+   */
+  static async setTTSProvider(provider: string): Promise<void> {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    await config.update('tts.provider', provider, vscode.ConfigurationTarget.Global)
+  }
+
+  /**
+   * 获取腾讯TTS配置
+   */
+  static async getTencentTTSConfig(): Promise<{ secretId: string; secretKey: string; voiceType: number }> {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    const secretKey = (await this.getSecrets().get('transgo.tts.tencent.secretKey')) || ''
+    return {
+      secretId: config.get('tts.tencent.secretId', ''),
+      secretKey,
+      voiceType: config.get('tts.tencent.voiceType', 101001),
+    }
+  }
+
+  /**
+   * 设置腾讯TTS配置
+   */
+  static async setTencentTTSConfig(secretId: string, secretKey: string, voiceType: number): Promise<void> {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    await config.update('tts.tencent.secretId', secretId, vscode.ConfigurationTarget.Global)
+    await this.getSecrets().store('transgo.tts.tencent.secretKey', secretKey)
+    await config.update('tts.tencent.voiceType', voiceType, vscode.ConfigurationTarget.Global)
   }
 }

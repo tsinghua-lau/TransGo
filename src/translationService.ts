@@ -102,40 +102,40 @@ export class TranslationService {
     return ConfigManager.getProvider()
   }
 
-  setBaiduConfig(appid: string, appkey: string): void {
-    ConfigManager.setBaiduConfig(appid, appkey)
+  async setBaiduConfig(appid: string, appkey: string): Promise<void> {
+    await ConfigManager.setBaiduConfig(appid, appkey)
   }
 
-  getBaiduConfig(): { appid: string; appkey: string } {
-    return ConfigManager.getBaiduConfig()
+  async getBaiduConfig(): Promise<{ appid: string; appkey: string }> {
+    return await ConfigManager.getBaiduConfig()
   }
 
-  setYoudaoConfig(appKey: string, appSecret: string): void {
-    ConfigManager.setYoudaoConfig(appKey, appSecret)
+  async setYoudaoConfig(appKey: string, appSecret: string): Promise<void> {
+    await ConfigManager.setYoudaoConfig(appKey, appSecret)
   }
 
-  getYoudaoConfig(): { appKey: string; appSecret: string } {
-    return ConfigManager.getYoudaoConfig()
+  async getYoudaoConfig(): Promise<{ appKey: string; appSecret: string }> {
+    return await ConfigManager.getYoudaoConfig()
   }
 
-  setTencentConfig(secretId: string, secretKey: string): void {
-    ConfigManager.setTencentConfig(secretId, secretKey)
+  async setTencentConfig(secretId: string, secretKey: string): Promise<void> {
+    await ConfigManager.setTencentConfig(secretId, secretKey)
   }
 
-  getTencentConfig(): { secretId: string; secretKey: string } {
-    return ConfigManager.getTencentConfig()
+  async getTencentConfig(): Promise<{ secretId: string; secretKey: string }> {
+    return await ConfigManager.getTencentConfig()
   }
 
-  getAIConfigs(): AITranslationConfig[] {
-    return ConfigManager.getAIConfigs()
+  async getAIConfigs(): Promise<AITranslationConfig[]> {
+    return await ConfigManager.getAIConfigsWithSecrets()
   }
 
-  getCurrentAIConfig(): AITranslationConfig | null {
-    return ConfigManager.getCurrentAIConfig()
+  async getCurrentAIConfig(): Promise<AITranslationConfig | null> {
+    return await ConfigManager.getCurrentAIConfig()
   }
 
-  setAIConfigs(configs: AITranslationConfig[]): void {
-    ConfigManager.setAIConfigs(configs)
+  async setAIConfigs(configs: AITranslationConfig[]): Promise<void> {
+    await ConfigManager.setAIConfigs(configs)
   }
 
   async addAIConfig(config: AITranslationConfig): Promise<void> {
@@ -276,7 +276,7 @@ export class TranslationService {
   }
 
   private async callBaiduTranslationAPI(text: string, from: string, to: string): Promise<string> {
-    const baiduConfig = this.getBaiduConfig()
+    const baiduConfig = await this.getBaiduConfig()
     if (!baiduConfig.appid || !baiduConfig.appkey) {
       throw new Error('百度翻译需要配置 APPID 和密钥')
     }
@@ -350,7 +350,7 @@ export class TranslationService {
   }
 
   private async callYoudaoTranslationAPI(text: string, from: string, to: string): Promise<string> {
-    const youdaoConfig = this.getYoudaoConfig()
+    const youdaoConfig = await this.getYoudaoConfig()
     if (!youdaoConfig.appKey || !youdaoConfig.appSecret) {
       throw new Error('有道翻译需要配置 AppKey 和 AppSecret')
     }
@@ -440,7 +440,7 @@ export class TranslationService {
   }
 
   private async callTencentTranslationAPI(text: string, from: string, to: string): Promise<string> {
-    const tencentConfig = this.getTencentConfig()
+    const tencentConfig = await this.getTencentConfig()
     if (!tencentConfig.secretId || !tencentConfig.secretKey) {
       throw new Error('腾讯翻译需要配置 SecretId 和 SecretKey')
     }
@@ -548,7 +548,7 @@ export class TranslationService {
   }
 
   private async callAITranslationAPI(text: string, from: string, to: string): Promise<string> {
-    const aiConfig = this.getCurrentAIConfig()
+    const aiConfig = await this.getCurrentAIConfig()
     if (!aiConfig) {
       throw new Error('AI翻译需要先配置翻译服务')
     }

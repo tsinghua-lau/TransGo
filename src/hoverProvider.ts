@@ -319,11 +319,18 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
       const hoverContent = this.createHoverContent(text, result, this.extensionUri)
       return new vscode.Hover([hoverContent], range)
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : '翻译失败'
       console.error('悬浮翻译失败:', error)
-      if (error instanceof Error && error.message.includes('悬浮翻译不支持AI翻译')) {
+
+      // 通知用户（仅对配置错误通知，避免频繁打扰）
+      if (errorMsg.includes('配置') || errorMsg.includes('不支持')) {
+        vscode.window.showWarningMessage(`TransGo 悬浮翻译: ${errorMsg}`)
+      }
+
+      if (error instanceof Error) {
         return this.createErrorHover(text, error.message, range)
       }
-      return this.createErrorHover(text, '翻译失败', range)
+      return this.createErrorHover(text, errorMsg, range)
     }
   }
 
@@ -336,14 +343,6 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
     try {
       if (token.isCancellationRequested) {
         return null
-      }
-
-      // 检查当前翻译配置是否完整
-      const currentProvider = this.translationService.getCurrentProvider()
-
-      // 悬浮翻译不支持AI翻译
-      if (currentProvider === 'ai') {
-        throw new Error('悬浮翻译不支持AI翻译，请选择其它翻译源')
       }
 
       // 翻译文本

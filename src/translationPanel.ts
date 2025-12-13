@@ -44,7 +44,13 @@ export class TranslationPanelProvider {
     const logoPath = vscode.Uri.joinPath(extensionUri, 'src', 'images', 'logo.png')
     panel.iconPath = logoPath
 
-    TranslationPanelProvider.currentPanel = new TranslationPanelProvider(panel, extensionUri, selectedText)
+    const instance = new TranslationPanelProvider(panel, extensionUri, selectedText)
+    // 异步初始化配置
+    instance.loadConfigFromSettings().catch((err) => {
+      console.error('加载配置失败:', err)
+      vscode.window.showWarningMessage('TransGo: 加载配置失败，部分功能可能不可用')
+    })
+    TranslationPanelProvider.currentPanel = instance
   }
 
   private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, selectedText?: string) {
@@ -52,8 +58,7 @@ export class TranslationPanelProvider {
     this.translationService = TranslationService.getInstance()
     this.ttsService = TTSService.getInstance()
 
-    // 加载配置和状态
-    this.loadConfigFromSettings()
+    // 加载状态（同步）
     this.loadTranslationState()
 
     // 设置初始内容
@@ -70,34 +75,41 @@ export class TranslationPanelProvider {
     // 处理面板中的消息
     this._panel.webview.onDidReceiveMessage(
       async (message) => {
-        await this.handleMessage(message)
+        try {
+          await this.handleMessage(message)
+        } catch (error) {
+          console.error('处理消息失败:', message.type, error)
+          // 通知用户未捕获的错误
+          const errorMsg = error instanceof Error ? error.message : '操作失败'
+          vscode.window.showErrorMessage(`TransGo 操作失败: ${errorMsg}`)
+        }
       },
       null,
       this._disposables
     )
   }
 
-  private loadConfigFromSettings() {
+  private async loadConfigFromSettings() {
     // 从VS Code配置中加载翻译服务提供商
     const provider = ConfigManager.getProvider()
     this.translationService.setTranslationProvider(provider)
 
     // 加载百度翻译配置
-    const baiduConfig = ConfigManager.getBaiduConfig()
+    const baiduConfig = await ConfigManager.getBaiduConfig()
     if (baiduConfig.appid && baiduConfig.appkey) {
-      this.translationService.setBaiduConfig(baiduConfig.appid, baiduConfig.appkey)
+      await this.translationService.setBaiduConfig(baiduConfig.appid, baiduConfig.appkey)
     }
 
     // 加载有道翻译配置
-    const youdaoConfig = ConfigManager.getYoudaoConfig()
+    const youdaoConfig = await ConfigManager.getYoudaoConfig()
     if (youdaoConfig.appKey && youdaoConfig.appSecret) {
-      this.translationService.setYoudaoConfig(youdaoConfig.appKey, youdaoConfig.appSecret)
+      await this.translationService.setYoudaoConfig(youdaoConfig.appKey, youdaoConfig.appSecret)
     }
 
     // 加载腾讯翻译配置
-    const tencentConfig = ConfigManager.getTencentConfig()
+    const tencentConfig = await ConfigManager.getTencentConfig()
     if (tencentConfig.secretId && tencentConfig.secretKey) {
-      this.translationService.setTencentConfig(tencentConfig.secretId, tencentConfig.secretKey)
+      await this.translationService.setTencentConfig(tencentConfig.secretId, tencentConfig.secretKey)
     }
   }
 
@@ -129,20 +141,37 @@ export class TranslationPanelProvider {
             result: result,
           })
         } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : '翻译失败'
+          console.error('翻译失败:', error)
+
+          // 通知用户
+          vscode.window.showErrorMessage(`TransGo: ${errorMsg}`)
+
           this._panel.webview.postMessage({
             type: 'translationError',
-            error: error instanceof Error ? error.message : '翻译失败',
+            error: errorMsg,
           })
         }
         break
       case 'speak':
         try {
+          //   console.log('TTS播放请求:', {
+          //     text: message.text,
+          //     language: message.language,
+          //     provider: ConfigManager.getTTSProvider(),
+          //   })
           await this.ttsService.speak(message.text, message.language, message.options)
           this._panel.webview.postMessage({ type: 'speakComplete' })
         } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : '语音播放失败'
+          console.error('TTS播放失败:', error)
+
+          // 通知用户
+          vscode.window.showErrorMessage(`TransGo 语音播放失败: ${errorMsg}`)
+
           this._panel.webview.postMessage({
             type: 'speakError',
-            error: error instanceof Error ? error.message : '语音播放失败',
+            error: errorMsg,
           })
         }
         break
@@ -171,19 +200,19 @@ export class TranslationPanelProvider {
       case 'getBaiduConfig':
         this._panel.webview.postMessage({
           type: 'baiduConfig',
-          config: this.translationService.getBaiduConfig(),
+          config: await this.translationService.getBaiduConfig(),
         })
         break
       case 'getYoudaoConfig':
         this._panel.webview.postMessage({
           type: 'youdaoConfig',
-          config: this.translationService.getYoudaoConfig(),
+          config: await this.translationService.getYoudaoConfig(),
         })
         break
       case 'getTencentConfig':
         this._panel.webview.postMessage({
           type: 'tencentConfig',
-          config: this.translationService.getTencentConfig(),
+          config: await this.translationService.getTencentConfig(),
         })
         break
       case 'setProvider':
@@ -201,7 +230,7 @@ export class TranslationPanelProvider {
       case 'getAIConfigs':
         this._panel.webview.postMessage({
           type: 'aiConfigs',
-          configs: this.translationService.getAIConfigs(),
+          configs: await this.translationService.getAIConfigs(),
         })
         // 同时发送当前选中的配置ID
         this._panel.webview.postMessage({
@@ -214,14 +243,14 @@ export class TranslationPanelProvider {
         // 保存后立即返回最新的配置列表
         this._panel.webview.postMessage({
           type: 'aiConfigs',
-          configs: this.translationService.getAIConfigs(),
+          configs: await this.translationService.getAIConfigs(),
         })
         break
       case 'removeAIConfig':
         console.log('后端接收到删除AI配置请求，ID:', message.configId)
         await this.translationService.removeAIConfig(message.configId)
         console.log('删除AI配置完成，获取最新配置列表')
-        const updatedConfigs = this.translationService.getAIConfigs()
+        const updatedConfigs = await this.translationService.getAIConfigs()
         console.log('删除后的配置列表:', updatedConfigs)
 
         // 删除后立即返回最新的配置列表
@@ -240,7 +269,7 @@ export class TranslationPanelProvider {
         // 更新选中状态后返回最新的配置列表
         this._panel.webview.postMessage({
           type: 'aiConfigs',
-          configs: this.translationService.getAIConfigs(),
+          configs: await this.translationService.getAIConfigs(),
         })
         break
       case 'getShowCamelCaseButtons':
@@ -261,11 +290,36 @@ export class TranslationPanelProvider {
       case 'setEnableHoverTranslation':
         await ConfigManager.setHoverTranslationEnabled(message.enabled)
         break
+      case 'getTTSProvider':
+        this._panel.webview.postMessage({
+          type: 'ttsProvider',
+          provider: ConfigManager.getTTSProvider(),
+        })
+        break
+      case 'setTTSProvider':
+        await ConfigManager.setTTSProvider(message.provider)
+        break
+      case 'getTencentTTSConfig':
+        this._panel.webview.postMessage({
+          type: 'tencentTTSConfig',
+          config: await ConfigManager.getTencentTTSConfig(),
+        })
+        break
+      case 'getTencentTTSVoices':
+        this._panel.webview.postMessage({
+          type: 'tencentTTSVoices',
+          voices: this.ttsService.getTencentVoices(),
+        })
+        break
+      case 'setTencentTTSConfig':
+        await ConfigManager.setTencentTTSConfig(message.secretId, message.secretKey, message.voiceType)
+        await this.ttsService.loadTencentConfig()
+        break
     }
   }
 
   private async saveState() {
-    console.log('TransGo Panel: 保存翻译状态:', this.translationState)
+    // console.log('TransGo Panel: 保存翻译状态:', this.translationState)
     await ConfigManager.saveTranslationState(this.translationState)
   }
 
@@ -278,10 +332,12 @@ export class TranslationPanelProvider {
       provider: this.translationService.getCurrentProvider(),
     })
 
-    // 发送AI配置信息
-    this._panel.webview.postMessage({
-      type: 'aiConfigs',
-      configs: this.translationService.getAIConfigs(),
+    // 异步发送AI配置信息
+    this.translationService.getAIConfigs().then((configs) => {
+      this._panel.webview.postMessage({
+        type: 'aiConfigs',
+        configs,
+      })
     })
 
     // 发送当前选中的AI配置ID
@@ -300,6 +356,20 @@ export class TranslationPanelProvider {
     this._panel.webview.postMessage({
       type: 'enableHoverTranslation',
       enabled: ConfigManager.getHoverTranslationEnabled(),
+    })
+
+    // 发送TTS配置
+    this._panel.webview.postMessage({
+      type: 'ttsProvider',
+      provider: ConfigManager.getTTSProvider(),
+    })
+
+    // 异步发送腾讯TTS配置
+    ConfigManager.getTencentTTSConfig().then((config) => {
+      this._panel.webview.postMessage({
+        type: 'tencentTTSConfig',
+        config,
+      })
     })
 
     // 恢复输入文本
@@ -322,7 +392,7 @@ export class TranslationPanelProvider {
 
     // 恢复驼峰转换结果
     if (this.translationState.camelCaseResult) {
-      console.log('TransGo Panel: 恢复驼峰转换结果:', this.translationState.camelCaseResult)
+      //   console.log('TransGo Panel: 恢复驼峰转换结果:', this.translationState.camelCaseResult)
       this._panel.webview.postMessage({
         type: 'restoreCamelCaseResult',
         result: this.translationState.camelCaseResult,
@@ -1313,6 +1383,34 @@ export class TranslationPanelProvider {
                     </div>
                     
                     <div class="form-group">
+                        <label class="label" for="ttsProviderSelect">语音服务:</label>
+                        <select id="ttsProviderSelect" class="provider-select">
+                            <option value="system">系统语音</option>
+                            <option value="tencent">腾讯云语音</option>
+                        </select>
+                    </div>
+                    
+                    <div id="tencentTTSConfig" class="config-section">
+                        <div class="config-note">
+                            使用腾讯云语音需要在 <a href="https://console.cloud.tencent.com/cam/capi" class="config-link" target="_blank">腾讯云控制台</a> 获取 SecretId 和 SecretKey
+                        </div>
+                        <div class="form-group">
+                            <label class="label" for="tencentTTSSecretId">SecretId:</label>
+                            <input type="text" id="tencentTTSSecretId" class="config-input" placeholder="请输入腾讯云SecretId">
+                        </div>
+                        <div class="form-group">
+                            <label class="label" for="tencentTTSSecretKey">SecretKey:</label>
+                            <input type="password" id="tencentTTSSecretKey" class="config-input" placeholder="请输入腾讯云SecretKey">
+                        </div>
+                        <div class="form-group">
+                            <label class="label" for="tencentTTSVoiceType">音色选择:</label>
+                            <select id="tencentTTSVoiceType" class="provider-select">
+                                <!-- 音色选项将通过JavaScript动态生成 -->
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
                         <label class="label" for="showCamelCaseButtonsCheckbox">界面设置:</label>
                         <div style="display: flex; flex-direction: column; gap: 8px;">
                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -1404,6 +1502,7 @@ export class TranslationPanelProvider {
                 const convertToKebabCaseBtn = document.getElementById('convertToKebabCaseBtn');
                 
                 let currentTranslation = '';
+                let currentTranslationLang = 'en'; // 当前翻译结果的语言
                 let isSpeaking = false;
                 let currentSpeakingButton = null;
                 let aiConfigs = [];
@@ -1412,6 +1511,13 @@ export class TranslationPanelProvider {
                 let editingConfigId = null;
                 let showCamelCaseButtons = true; // 是否显示驼峰按钮
                 let enableHoverTranslation = false; // 是否启用悬浮翻译
+                
+                // TTS相关元素
+                const ttsProviderSelect = document.getElementById('ttsProviderSelect');
+                const tencentTTSConfig = document.getElementById('tencentTTSConfig');
+                const tencentTTSSecretId = document.getElementById('tencentTTSSecretId');
+                const tencentTTSSecretKey = document.getElementById('tencentTTSSecretKey');
+                const tencentTTSVoiceType = document.getElementById('tencentTTSVoiceType');
                 
                 // 更新标签文本的函数
                 function updateInputLabel(provider) {
@@ -1714,7 +1820,7 @@ export class TranslationPanelProvider {
                 
                 resultPlayBtn.addEventListener('click', () => {
                     if (currentTranslation && !isSpeaking) {
-                        playTextWithButton(currentTranslation, 'en', resultPlayBtn, resultPlayIcon);
+                        playTextWithButton(currentTranslation, currentTranslationLang, resultPlayBtn, resultPlayIcon);
                     } else if (isSpeaking && currentSpeakingButton === resultPlayBtn) {
                         stopSpeaking();
                     }
@@ -1722,6 +1828,10 @@ export class TranslationPanelProvider {
                 
                 function playTextWithButton(text, language, button, iconElement) {
                     if (isSpeaking) return;
+                    
+                    // console.log('播放文本:', text);
+                    // console.log('语言:', language);
+                    // console.log('当前TTS提供商配置:', /* 将在后端获取 */);
                     
                     isSpeaking = true;
                     currentSpeakingButton = button;
@@ -1821,6 +1931,8 @@ export class TranslationPanelProvider {
                             resetSpeakingState();
                             break;
                         case 'speakError':
+                            console.error('语音播放错误:', message.error);
+                            alert('语音播放失败: ' + message.error);
                             resetSpeakingState();
                             break;
                         case 'speakStopped':
@@ -1927,6 +2039,33 @@ export class TranslationPanelProvider {
                                 enableHoverTranslationCheckbox.checked = enableHoverTranslation;
                             }
                             break;
+                        case 'ttsProvider':
+                            if (ttsProviderSelect) {
+                                ttsProviderSelect.value = message.provider;
+                                tencentTTSConfig.classList.toggle('show', message.provider === 'tencent');
+                            }
+                            break;
+                        case 'tencentTTSConfig':
+                            if (message.config.secretId) {
+                                tencentTTSSecretId.value = message.config.secretId;
+                            }
+                            if (message.config.secretKey) {
+                                tencentTTSSecretKey.value = message.config.secretKey;
+                            }
+                            if (message.config.voiceType) {
+                                tencentTTSVoiceType.value = message.config.voiceType.toString();
+                            }
+                            break;
+                        case 'tencentTTSVoices':
+                            // 动态填充音色选项
+                            tencentTTSVoiceType.innerHTML = '';
+                            message.voices.forEach(voice => {
+                                const option = document.createElement('option');
+                                option.value = voice.value;
+                                option.textContent = voice.label;
+                                tencentTTSVoiceType.appendChild(option);
+                            });
+                            break;
                     }
                 });
                 
@@ -1951,6 +2090,7 @@ export class TranslationPanelProvider {
                 
                 function showResult(result) {
                     currentTranslation = result.translatedText;
+                    currentTranslationLang = result.targetLang || 'en'; // 保存目标语言
                     resultContent.textContent = result.translatedText;
                     const sourceLangName = result.sourceLang === 'zh' ? '中文' : '英文';
                     const targetLangName = result.targetLang === 'zh' ? '中文' : '英文';
@@ -2098,6 +2238,8 @@ export class TranslationPanelProvider {
                     vscode.postMessage({ type: 'getAIConfigs' });
                     vscode.postMessage({ type: 'getShowCamelCaseButtons' });
                     vscode.postMessage({ type: 'getEnableHoverTranslation' });
+                    vscode.postMessage({ type: 'getTTSProvider' });
+                    vscode.postMessage({ type: 'getTencentTTSConfig' });
                 }
                 
                 function showMainPage() {
@@ -2269,6 +2411,29 @@ export class TranslationPanelProvider {
                     enableHoverTranslation = enabled;
                 });
                 
+                // TTS提供商选择事件
+                ttsProviderSelect.addEventListener('change', () => {
+                    const provider = ttsProviderSelect.value;
+                    vscode.postMessage({ type: 'setTTSProvider', provider: provider });
+                    tencentTTSConfig.classList.toggle('show', provider === 'tencent');
+                });
+                
+                // 腾讯TTS配置保存
+                function saveTencentTTSConfig() {
+                    if (tencentTTSSecretId.value && tencentTTSSecretKey.value) {
+                        vscode.postMessage({
+                            type: 'setTencentTTSConfig',
+                            secretId: tencentTTSSecretId.value,
+                            secretKey: tencentTTSSecretKey.value,
+                            voiceType: parseInt(tencentTTSVoiceType.value)
+                        });
+                    }
+                }
+                
+                tencentTTSSecretId.addEventListener('blur', saveTencentTTSConfig);
+                tencentTTSSecretKey.addEventListener('blur', saveTencentTTSConfig);
+                tencentTTSVoiceType.addEventListener('change', saveTencentTTSConfig);
+                
                 // 页面加载完成后通知后端
                 setTimeout(() => {
                     vscode.postMessage({ type: 'webviewReady' });
@@ -2277,6 +2442,9 @@ export class TranslationPanelProvider {
                 // 检查TTS可用性
                 vscode.postMessage({ type: 'checkTTSAvailable' });
                 vscode.postMessage({ type: 'getProvider' });
+                vscode.postMessage({ type: 'getTTSProvider' });
+                vscode.postMessage({ type: 'getTencentTTSConfig' });
+                vscode.postMessage({ type: 'getTencentTTSVoices' });
             </script>
         </body>
         </html>`

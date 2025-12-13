@@ -2,7 +2,7 @@
   "name": "TransGo",
   "displayName": "中英文翻译",
   "description": "侧边栏中英文翻译插件，支持对话翻译、悬浮翻译、朗读、转为驼峰下划线等，现已支持AI翻译（ChatGPT、Claude等）",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "publisher": "tsinghua-lau",
   "engines": {
     "vscode": "^1.74.0"
@@ -35,35 +35,20 @@
           "default": "",
           "description": "百度翻译APPID"
         },
-        "transgo.baidu.appkey": {
-          "type": "string",
-          "default": "",
-          "description": "百度翻译密钥"
-        },
         "transgo.youdao.appkey": {
           "type": "string",
           "default": "",
           "description": "有道翻译AppKey"
-        },
-        "transgo.youdao.appsecret": {
-          "type": "string",
-          "default": "",
-          "description": "有道翻译AppSecret"
         },
         "transgo.tencent.secretid": {
           "type": "string",
           "default": "",
           "description": "腾讯翻译SecretId"
         },
-        "transgo.tencent.secretkey": {
-          "type": "string",
-          "default": "",
-          "description": "腾讯翻译SecretKey"
-        },
         "transgo.ai.configs": {
           "type": "array",
           "default": [],
-          "description": "AI翻译配置列表"
+          "description": "AI翻译配置列表（敏感信息已加密存储）"
         },
         "transgo.ai.currentConfigId": {
           "type": "string",
@@ -95,6 +80,25 @@
           "minimum": 100,
           "maximum": 2000,
           "description": "悬浮翻译延迟（毫秒）"
+        },
+        "transgo.tts.provider": {
+          "type": "string",
+          "enum": [
+            "system",
+            "tencent"
+          ],
+          "default": "system",
+          "description": "语音服务提供商"
+        },
+        "transgo.tts.tencent.secretId": {
+          "type": "string",
+          "default": "",
+          "description": "腾讯云语音服务SecretId"
+        },
+        "transgo.tts.tencent.voiceType": {
+          "type": "number",
+          "default": 101001,
+          "description": "腾讯云语音音色类型"
         }
       }
     },
@@ -147,6 +151,7 @@
     "url": "https://github.com/tsinghua-lau/TransGo"
   },
   "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
     "@types/node": "16.x",
     "@types/vscode": "^1.74.0",
     "@vscode/vsce": "^3.6.2",
@@ -154,6 +159,7 @@
   },
   "dependencies": {
     "axios": "^1.6.0",
+    "crypto-js": "^4.2.0",
     "say": "^0.13.1"
   },
   "icon": "src/images/logo.png",
