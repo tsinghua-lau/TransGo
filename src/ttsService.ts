@@ -74,7 +74,7 @@ export class TTSService {
    * 使用腾讯TTS播放
    */
   private async speakWithTencent(text: string, language: 'zh' | 'en', options?: TTSOptions): Promise<void> {
-    this.loadTencentConfig()
+    await this.loadTencentConfig()
 
     if (!this.tencentTTS.isConfigured()) {
       throw new Error('腾讯语音服务未配置，请在设置中配置SecretId和SecretKey')

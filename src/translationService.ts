@@ -29,6 +29,39 @@ export class TranslationService {
 
   private constructor() {}
 
+  /**
+   * 检测文本语言类型（中文 or 英文）
+   * 使用中文字符比例判断，提高混合文本识别准确度
+   * @param text 待检测的文本
+   * @returns 'zh' | 'en'
+   */
+  private detectLanguage(text: string): 'zh' | 'en' {
+    const cleanText = text.trim()
+
+    // 统计中文字符数量（包括中文标点符号）
+    const chineseChars = (cleanText.match(/[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]/g) || []).length
+
+    // 统计总字符数（去除空白字符）
+    const totalChars = cleanText.replace(/\s/g, '').length
+
+    // 如果没有有效字符，默认为英文
+    if (totalChars === 0) {
+      return 'en'
+    }
+
+    // 计算中文字符比例
+    const chineseRatio = chineseChars / totalChars
+
+    // 如果中文字符超过 20%，判定为中文文本
+    // 这个阈值可以处理大多数中英混合场景：
+    // - "API接口" (50% 中文) → 中文
+    // - "Hello 世界" (33% 中文) → 中文
+    // - "Python编程" (50% 中文) → 中文
+    // - "console.log()" (0% 中文) → 英文
+    // - "getUserInfo" (0% 中文) → 英文
+    return chineseRatio > 0.2 ? 'zh' : 'en'
+  }
+
   // 选中的英文文本清洗干净
   private englishClearSelectionText(text: string): string {
     if (!text) {
@@ -155,10 +188,10 @@ export class TranslationService {
       throw new Error('输入文本不能为空')
     }
 
-    // 数据清洗：如果是英文文本，进行清洗处理
-    const isChineseText = /[\u4e00-\u9fa5]/.test(text)
-    const sourceLang = isChineseText ? 'zh' : 'en'
-    const targetLang = isChineseText ? 'en' : 'zh'
+    // 使用比例检测判断语言类型
+    const sourceLang = this.detectLanguage(text)
+    const targetLang = sourceLang === 'zh' ? 'en' : 'zh'
+    const isChineseText = sourceLang === 'zh'
 
     // 如果是英文文本，进行清洗
     let cleanedText = text
