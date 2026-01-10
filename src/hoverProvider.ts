@@ -46,12 +46,12 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
     const cacheKey = this.getCacheKey(text)
     const cachedResult = this.getFromCache(cacheKey)
     if (cachedResult) {
-      const hoverContent = this.createHoverContent(text, cachedResult, this.extensionUri)
+      const hoverContent = this.createHoverContent(text, cachedResult, this.extensionUri, document, range)
       return new vscode.Hover([hoverContent], range)
     }
 
     // 直接开始翻译
-    return this.createDirectHover(text, range, token)
+    return this.createDirectHover(text, range, token, document)
   }
 
   private getTextRange(document: vscode.TextDocument, position: vscode.Position): vscode.Range | undefined {
@@ -138,7 +138,13 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
     return /\s/.test(char)
   }
 
-  private createHoverContent(originalText: string, translationResult: any, extensionUri?: vscode.Uri): vscode.MarkdownString {
+  private createHoverContent(
+    originalText: string,
+    translationResult: any,
+    extensionUri?: vscode.Uri,
+    document?: vscode.TextDocument,
+    range?: vscode.Range
+  ): vscode.MarkdownString {
     const markdown = new vscode.MarkdownString()
     markdown.isTrusted = true
     markdown.supportHtml = true
@@ -166,15 +172,60 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
     markdown.appendCodeblock(translationResult.translatedText, '')
     markdown.appendMarkdown(`\n\n`)
 
+    // 检测原文语言类型（用于播放原文）
+    const isChineseInput = /[\u4e00-\u9fa5]/.test(originalText)
+    const originalLanguage = isChineseInput ? 'zh' : 'en' // 原文的语言
+
     // 添加复制按钮
     const copyArgs = JSON.stringify([translationResult.translatedText])
     const copyCommand = `command:transgo.copyText?${encodeURIComponent(copyArgs)}`
     if (extensionUri) {
       const copyIconUri = vscode.Uri.joinPath(extensionUri, 'src', 'images', 'copy.png')
-      markdown.appendMarkdown(`[<img src="${copyIconUri.toString()}" width="16" height="16" align="absmiddle">&nbsp;复制](${copyCommand} "复制翻译结果")\n\n`)
+      markdown.appendMarkdown(`[<img src="${copyIconUri.toString()}" width="16" height="16" align="absmiddle">&nbsp;复制](${copyCommand} "复制翻译结果")`)
     } else {
-      markdown.appendMarkdown(`[📋 复制](${copyCommand} "复制翻译结果")\n\n`)
+      markdown.appendMarkdown(`[📋 复制](${copyCommand} "复制翻译结果")`)
     }
+
+    // 添加播放按钮
+    const playArgs = JSON.stringify([
+      {
+        text: originalText,
+        language: originalLanguage,
+      },
+    ])
+    const playCommand = `command:transgo.playTextFromHover?${encodeURIComponent(playArgs)}`
+    if (extensionUri) {
+      const playIconUri = vscode.Uri.joinPath(extensionUri, 'src', 'images', 'play.png')
+      markdown.appendMarkdown(`&nbsp;&nbsp;&nbsp;[<img src="${playIconUri.toString()}" width="16" height="16" align="absmiddle">&nbsp;播放](${playCommand} "播放原文")`)
+    } else {
+      markdown.appendMarkdown(`&nbsp;&nbsp;&nbsp;[▶️ 播放](${playCommand} "播放原文")`)
+    }
+
+    // 添加替换按钮
+    if (document && range) {
+      const replaceArgs = JSON.stringify([
+        {
+          text: translationResult.translatedText,
+          originalText: originalText,
+          range: {
+            startLine: range.start.line,
+            startChar: range.start.character,
+            endLine: range.end.line,
+            endChar: range.end.character,
+          },
+          uri: document.uri.toString(),
+        },
+      ])
+      const replaceCommand = `command:transgo.replaceText?${encodeURIComponent(replaceArgs)}`
+      if (extensionUri) {
+        const replaceIconUri = vscode.Uri.joinPath(extensionUri, 'src', 'images', 'replace.png')
+        markdown.appendMarkdown(`&nbsp;&nbsp;&nbsp;[<img src="${replaceIconUri.toString()}" width="16" height="16" align="absmiddle">&nbsp;替换](${replaceCommand} "替换为翻译结果")`)
+      } else {
+        markdown.appendMarkdown(`&nbsp;&nbsp;&nbsp;[$(replace)&nbsp;替换](${replaceCommand} "替换为翻译结果")`)
+      }
+    }
+
+    markdown.appendMarkdown(`\n\n`)
 
     // 添加分隔线
     markdown.appendMarkdown(`---`)
@@ -278,7 +329,12 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
   /**
    * 创建延时翻译悬浮内容
    */
-  private async createDirectHover(text: string, range: vscode.Range, token: vscode.CancellationToken): Promise<vscode.Hover> {
+  private async createDirectHover(
+    text: string,
+    range: vscode.Range,
+    token: vscode.CancellationToken,
+    document: vscode.TextDocument
+  ): Promise<vscode.Hover> {
     const cacheKey = this.getCacheKey(text)
 
     try {
@@ -288,7 +344,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         if (result === null) {
           return this.createLoadingHover(text, range)
         }
-        const hoverContent = this.createHoverContent(text, result, this.extensionUri)
+        const hoverContent = this.createHoverContent(text, result, this.extensionUri, document, range)
         return new vscode.Hover([hoverContent], range)
       }
 
@@ -316,7 +372,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
         return this.createLoadingHover(text, range)
       }
 
-      const hoverContent = this.createHoverContent(text, result, this.extensionUri)
+      const hoverContent = this.createHoverContent(text, result, this.extensionUri, document, range)
       return new vscode.Hover([hoverContent], range)
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '翻译失败'

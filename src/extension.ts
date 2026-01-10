@@ -1,7 +1,10 @@
 import * as vscode from 'vscode'
 import { ConfigManager } from './configManager'
 import { TranslationHoverProvider } from './hoverProvider'
+import { TextFormatter } from './textFormatter'
 import { TranslationPanelProvider } from './translationPanel'
+import { TranslationService } from './translationService'
+import { TTSService } from './ttsService'
 
 export function activate(context: vscode.ExtensionContext) {
   // 初始化 ConfigManager
@@ -73,6 +76,107 @@ export function activate(context: vscode.ExtensionContext) {
     })
   )
 
+  // 注册播放命令（用于悬浮翻译的播放按钮）
+  context.subscriptions.push(
+    vscode.commands.registerCommand('transgo.playTextFromHover', async (args: { text: string; language: 'zh' | 'en' }) => {
+      const { text, language } = args
+
+      // 获取TTS服务实例
+      const ttsService = TTSService.getInstance()
+
+      // 显示播放通知（支持取消）
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: '正在播放...',
+          cancellable: true,
+        },
+        async (progress, token) => {
+          // 处理取消事件
+          token.onCancellationRequested(() => {
+            ttsService.stop()
+          })
+
+          try {
+            // 调用TTS播放
+            await ttsService.speak(text, language, { speed: 1.0 })
+
+            // 播放完成
+            // if (!token.isCancellationRequested) {
+            //   vscode.window.showInformationMessage('播放完成')
+            // }
+          } catch (error) {
+            // 如果是用户主动取消，不显示错误提示
+            if (token.isCancellationRequested) {
+              return
+            }
+
+            // 真正的播放错误才显示提示
+            const errorMsg = error instanceof Error ? error.message : '播放失败'
+            vscode.window.showErrorMessage(`播放失败: ${errorMsg}`)
+          }
+        }
+      )
+    })
+  )
+
+  // 注册替换命令（用于悬浮翻译的替换按钮）
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'transgo.replaceText',
+      async (args: { text: string; originalText: string; range: { startLine: number; startChar: number; endLine: number; endChar: number }; uri: string }) => {
+        const { text, originalText, range: rangeData, uri } = args
+
+        try {
+          // 获取编辑器和文档
+          const editor = vscode.window.activeTextEditor
+          if (!editor || editor.document.uri.toString() !== uri) {
+            vscode.window.showWarningMessage('文档已关闭或切换，无法替换')
+            return
+          }
+
+          // 重建 Range 对象
+          const range = new vscode.Range(new vscode.Position(rangeData.startLine, rangeData.startChar), new vscode.Position(rangeData.endLine, rangeData.endChar))
+
+          // 验证原始文本是否仍然存在
+          const currentText = editor.document.getText(range).trim()
+          if (currentText !== originalText) {
+            vscode.window.showWarningMessage('原始文本已改变，无法安全替换。请重新选择文本。')
+            return
+          }
+
+          // 读取格式配置并转换文本
+          const formatType = ConfigManager.getHoverReplaceFormat()
+          // 检测翻译结果是否包含中文
+          const hasChinese = /[\u4e00-\u9fa5]/.test(text)
+          // 如果包含中文，不应用格式转换；否则应用格式转换
+          const formattedText = hasChinese ? text : TextFormatter.format(text, formatType)
+
+          // 执行替换
+          const success = await editor.edit((editBuilder) => {
+            editBuilder.replace(range, formattedText)
+          })
+
+          if (success) {
+            // 如果是中文或者格式为none，不显示格式名称
+            if (hasChinese || formatType === 'none') {
+              vscode.window.setStatusBarMessage('已替换为翻译结果', 3000)
+            } else {
+              // 显示转换后的格式提示
+              const formatName = TextFormatter.getFormatDisplayName(formatType)
+              vscode.window.setStatusBarMessage(`已替换为翻译结果（${formatName}格式）`, 3000)
+            }
+          } else {
+            vscode.window.showErrorMessage('替换失败')
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : '替换失败'
+          vscode.window.showErrorMessage(`替换失败: ${errorMsg}`)
+        }
+      }
+    )
+  )
+
   // 快速翻译命令 - 在右侧打开翻译面板
   context.subscriptions.push(
     vscode.commands.registerCommand('translate.quickTranslate', async () => {
@@ -113,6 +217,72 @@ export function activate(context: vscode.ExtensionContext) {
           TranslationPanelProvider.currentPanel.translateText(selectedText.trim())
         }
       }, 300)
+    })
+  )
+
+  // 快捷键翻译并替换命令 - 直接翻译并替换选中文本
+  context.subscriptions.push(
+    vscode.commands.registerCommand('translate.translateAndReplace', async () => {
+      const editor = vscode.window.activeTextEditor
+      if (!editor || editor.selection.isEmpty) {
+        vscode.window.showWarningMessage('请先选择要翻译的文本')
+        return
+      }
+
+      const selectedText = editor.document.getText(editor.selection).trim()
+      if (!selectedText) {
+        vscode.window.showWarningMessage('选中的文本为空')
+        return
+      }
+
+      const range = editor.selection
+
+      try {
+        // 显示翻译进度
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: '正在翻译并替换...',
+            cancellable: false,
+          },
+          async () => {
+            // 获取翻译服务实例
+            const translationService = TranslationService.getInstance()
+
+            // 执行翻译
+            const result = await translationService.translateText(selectedText)
+
+            // 检测翻译结果是否包含中文
+            const hasChinese = /[\u4e00-\u9fa5]/.test(result.translatedText)
+
+            // 读取格式配置
+            const formatType = ConfigManager.getHoverReplaceFormat()
+
+            // 如果包含中文，不应用格式转换；否则应用格式转换
+            const formattedText = hasChinese ? result.translatedText : TextFormatter.format(result.translatedText, formatType)
+
+            // 执行替换
+            const success = await editor.edit((editBuilder) => {
+              editBuilder.replace(range, formattedText)
+            })
+
+            if (success) {
+              // 显示成功提示
+              if (hasChinese || formatType === 'none') {
+                vscode.window.setStatusBarMessage('已替换为翻译结果', 3000)
+              } else {
+                const formatName = TextFormatter.getFormatDisplayName(formatType)
+                vscode.window.setStatusBarMessage(`已替换为翻译结果（${formatName}格式）`, 3000)
+              }
+            } else {
+              vscode.window.showErrorMessage('替换失败')
+            }
+          }
+        )
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : '翻译失败'
+        vscode.window.showErrorMessage(`翻译失败: ${errorMsg}`)
+      }
     })
   )
 
@@ -195,7 +365,7 @@ async function migrateSecretsFromSettings(context: vscode.ExtensionContext): Pro
 
     // 标记迁移完成
     await context.globalState.update('transgo-secrets-migrated-v2', true)
-    
+
     if (migrationCount > 0) {
       console.log(`密钥迁移完成，共迁移 ${migrationCount} 个密钥`)
       vscode.window.showInformationMessage(`TransGo: 已将 ${migrationCount} 个密钥迁移到安全存储`)

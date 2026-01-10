@@ -427,4 +427,22 @@ export class ConfigManager {
     await this.getSecrets().store('transgo.tts.tencent.secretKey', secretKey)
     await config.update('tts.tencent.voiceType', voiceType, vscode.ConfigurationTarget.Global)
   }
+
+  /**
+   * 获取悬浮替换格式配置
+   * @returns 格式类型：none | pascalCase | camelCase | snakeCase | kebabCase
+   */
+  static getHoverReplaceFormat(): string {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    return config.get<string>('hoverReplaceFormat', 'none')
+  }
+
+  /**
+   * 设置悬浮替换格式配置
+   * @param format 格式类型
+   */
+  static async setHoverReplaceFormat(format: string): Promise<void> {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    await config.update('hoverReplaceFormat', format, vscode.ConfigurationTarget.Global)
+  }
 }

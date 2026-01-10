@@ -20,6 +20,7 @@ export class TranslationPanelProvider {
 
   public static createOrShow(extensionUri: vscode.Uri, selectedText?: string) {
     // 使用Beside列创建更窄的面板，如果没有活动编辑器则在右侧创建一个较窄的面板
+    console.log('TransGo createOrShow 被调用', new Error().stack)
     const column = vscode.ViewColumn.Beside
 
     // 如果已经有面板存在，就显示它
@@ -314,6 +315,15 @@ export class TranslationPanelProvider {
       case 'setTencentTTSConfig':
         await ConfigManager.setTencentTTSConfig(message.secretId, message.secretKey, message.voiceType)
         await this.ttsService.loadTencentConfig()
+        break
+      case 'getHoverReplaceFormat':
+        this._panel.webview.postMessage({
+          type: 'hoverReplaceFormat',
+          format: ConfigManager.getHoverReplaceFormat(),
+        })
+        break
+      case 'setHoverReplaceFormat':
+        await ConfigManager.setHoverReplaceFormat(message.format)
         break
     }
   }
@@ -1423,9 +1433,23 @@ export class TranslationPanelProvider {
                             </div>
                         </div>
                     </div>
+
+                    <div class="form-group">
+                        <label class="label" for="hoverReplaceFormatSelect">悬浮替换格式:</label>
+                        <select id="hoverReplaceFormatSelect" class="provider-select">
+                            <option value="none">不转换（保持原文）</option>
+                            <option value="pascalCase">大驼峰 PascalCase</option>
+                            <option value="camelCase">小驼峰 camelCase</option>
+                            <option value="snakeCase">下划线 snake_case</option>
+                            <option value="kebabCase">中划线 kebab-case</option>
+                        </select>
+                        <div class="config-note" style="margin-top: 8px; font-size: 12px;">
+                            悬浮翻译点击替换按钮时的格式转换，例如："获取用户信息" → "getUserInfo"（小驼峰）
+                        </div>
+                    </div>
                 </div>
             </div>
-            
+
             <script>
                 const vscode = acquireVsCodeApi();
                 
@@ -1480,7 +1504,8 @@ export class TranslationPanelProvider {
                 // 界面设置元素
                 const showCamelCaseButtonsCheckbox = document.getElementById('showCamelCaseButtonsCheckbox');
                 const enableHoverTranslationCheckbox = document.getElementById('enableHoverTranslationCheckbox');
-                
+                const hoverReplaceFormatSelect = document.getElementById('hoverReplaceFormatSelect');
+
                 // 自定义确认对话框元素
                 const customConfirmOverlay = document.getElementById('customConfirmOverlay');
                 const customConfirmTitle = document.getElementById('customConfirmTitle');
@@ -2066,6 +2091,11 @@ export class TranslationPanelProvider {
                                 tencentTTSVoiceType.appendChild(option);
                             });
                             break;
+                        case 'hoverReplaceFormat':
+                            if (message.format) {
+                                hoverReplaceFormatSelect.value = message.format;
+                            }
+                            break;
                     }
                 });
                 
@@ -2433,18 +2463,27 @@ export class TranslationPanelProvider {
                 tencentTTSSecretId.addEventListener('blur', saveTencentTTSConfig);
                 tencentTTSSecretKey.addEventListener('blur', saveTencentTTSConfig);
                 tencentTTSVoiceType.addEventListener('change', saveTencentTTSConfig);
-                
+
+                // 监听悬浮替换格式选择变化
+                hoverReplaceFormatSelect.addEventListener('change', () => {
+                    vscode.postMessage({
+                        type: 'setHoverReplaceFormat',
+                        format: hoverReplaceFormatSelect.value
+                    });
+                });
+
                 // 页面加载完成后通知后端
                 setTimeout(() => {
                     vscode.postMessage({ type: 'webviewReady' });
                 }, 100);
-                
+
                 // 检查TTS可用性
                 vscode.postMessage({ type: 'checkTTSAvailable' });
                 vscode.postMessage({ type: 'getProvider' });
                 vscode.postMessage({ type: 'getTTSProvider' });
                 vscode.postMessage({ type: 'getTencentTTSConfig' });
                 vscode.postMessage({ type: 'getTencentTTSVoices' });
+                vscode.postMessage({ type: 'getHoverReplaceFormat' });
             </script>
         </body>
         </html>`
