@@ -1,8 +1,8 @@
 {
   "name": "TransGo",
   "displayName": "中英文翻译",
-  "description": "侧边栏中英文翻译插件，支持对话翻译、悬浮翻译、朗读、转为驼峰下划线等，现已支持AI翻译（ChatGPT、Claude等）",
-  "version": "1.1.2",
+  "description": "侧边栏中文翻译插件，支持对话翻译、悬浮翻译、朗读、转为驼峰下划线等，现已支持AI翻译（ChatGPT、Claude等）",
+  "version": "1.1.3",
   "publisher": "tsinghua-lau",
   "engines": {
     "vscode": "^1.74.0"
@@ -99,6 +99,25 @@
           "type": "number",
           "default": 101001,
           "description": "腾讯云语音音色类型"
+        },
+        "transgo.hoverReplaceFormat": {
+          "type": "string",
+          "enum": [
+            "none",
+            "pascalCase",
+            "camelCase",
+            "snakeCase",
+            "kebabCase"
+          ],
+          "default": "none",
+          "enumDescriptions": [
+            "不转换，保持翻译原文",
+            "大驼峰（PascalCase）：HelloWorld",
+            "小驼峰（camelCase）：helloWorld",
+            "下划线（snake_case）：hello_world",
+            "中划线（kebab-case）：hello-world"
+          ],
+          "description": "悬浮翻译替换时的格式转换"
         }
       }
     },
@@ -117,6 +136,11 @@
         "command": "translate.translateSelection",
         "title": "翻译选中文本",
         "icon": "src/images/tradition.svg"
+      },
+      {
+        "command": "translate.translateAndReplace",
+        "title": "翻译并替换",
+        "icon": "$(replace)"
       },
       {
         "command": "transgo.copyText",
@@ -139,7 +163,15 @@
           "group": "translate"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "translate.translateAndReplace",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
+        "when": "editorHasSelection"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

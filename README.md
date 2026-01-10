@@ -1,11 +1,10 @@
 # TransGo 中英文翻译
 
-TransGo 是一个免费专业的翻译插件，支持对话翻译、悬浮翻译、语音朗读、转驼峰命名等功能，现已全面支持主流 AI 翻译服务。
+TransGo 是一个免费专业的翻译插件，支持对话翻译、悬浮翻译、语音朗读、转驼峰命名等功能，现已全面支持主流 AI 翻译服务，可视化操作配置，轻松实现高质量翻译体验。
 
 > ![提示](https://img.shields.io/badge/Tip-提示-blue?style=flat-square)
 > 如果升级后无法使用，重新安装即可。
-> 悬浮翻译功能需要在设置中开启。如果选用 AI 翻译服务，大模型返回的内容可能会比较长，切换其他翻译服务可以获得更简洁的结果。
-> 选择 AI 翻译时注意翻译提示词的编写，建议使用"**你是专业的中英文翻译，请准确翻译以下内容。中文翻译为英文，英文翻译为中文，只返回翻译结果：{text}**" 这样的提示词。
+> 选择 AI 翻译时注意翻译提示词的编写，建议使用"**你是专业的中英文翻译，请准确翻译以下内容。中文翻译为英文，英文翻译为中文，只返回翻译结果：{text}**" 提示词。
 
 > ![安全](https://img.shields.io/badge/Security-安全-green?style=flat-square)  
 > **v1.1.2+ 安全更新**: 所有 API 密钥现在使用加密保存，不再以明文形式保存在 settings.json 中。首次升级会自动迁移现有密钥。
@@ -23,22 +22,23 @@ TransGo 是一个免费专业的翻译插件，支持对话翻译、悬浮翻译
 - 🐫 翻译结果大小驼峰转换
 - 🌐 支持多种翻译服务：Google、百度、有道、腾讯、AI 大模型
 - 🤖 自定义配置 AI 大模型翻译提示词，多样化翻译
-- ✨ 简洁美观的界面设计
-- 🔒 安全存储：API 密钥使用系统级加密存储（v1.2.0+）
+- ✨ 简洁美观的界面设计，可视化的配置操作
+- ⚡️ 快捷键翻译快速响应，流畅体验
+- 🔒 安全存储：API 密钥使用系统级加密存储（v1.1.2+）
 
 ## 目录
 
 - [快速使用](#快速使用)
-- [安全性说明](#安全性说明)
 - [传统翻译配置](#传统翻译服务)
 - [AI 翻译配置](#ai-翻译配置)
 - [常用配置模板](#常用配置模板)
-- [常见问题](#常见问题)
 - [版本更新](#版本更新)
+- [安全性说明](#安全性说明)
+- [常见问题](#常见问题)
 
 ## 快速使用
 
-- 点击右侧边栏的翻译图标
+- 点击右上角的翻译图标
 - 在侧边栏中输入要翻译的文本
 - 点击"翻译"按钮或使用快捷键 `Enter`
 
@@ -47,33 +47,14 @@ TransGo 是一个免费专业的翻译插件，支持对话翻译、悬浮翻译
 - **编辑器右键**: 选中文本后右键选择"翻译选中文本"
 - **编辑器顶部**: 点击编辑器标题栏的翻译图标
 - **命令面板**: `Ctrl+Shift+P` → `打开翻译`
+- **悬浮翻译**: 鼠标悬停在文本上显示翻译结果（需在设置中开启）
+- **快捷键翻译并替换**: 选中文本后使用快捷键 windows: `Ctrl+Alt+T` macOS: `Cmd+Alt+T` 进行翻译并替换原文
+- **配置快捷键**: 设置 → 键盘快捷方式 → 搜索 `translate` 自定义快捷键:
 
-## 安全性说明
-
-**v1.1.2+ 安全增强**
-
-TransGo 安全存储所有敏感信息：
-
-- ✅ **系统级加密**: 使用操作系统的安全存储机制
-
-  - Windows: Windows 凭据管理器
-  - macOS: Keychain
-  - Linux: Secret Service API (libsecret)
-
-- ✅ **防止泄露**: 密钥不会出现在以下位置
-
-  - settings.json 文件
-  - Git 版本控制
-  - VSCode 设置同步
-  - 备份文件
-
-- ✅ **自动迁移**: 从旧版本升级时自动迁移密钥到安全存储
-
-**非敏感配置** (仍保存在 settings.json):
-
-- 服务商 ID (appid, secretid)
-- API 地址 (baseUrl)
-- 模型名称等
+  - `translate.openTranslatePanel`: 打开翻译面板
+  - `translate.translateAndReplace`: 翻译并替换选中文本
+  - `translate.translateSelection`: 翻译选中文本
+  - ...
 
 ## 传统翻译服务
 
@@ -119,18 +100,25 @@ TransGo 安全存储所有敏感信息：
 
 ### 主流服务配置
 
-#### OpenAI 系列
-
-```
-Base URL: https://api.openai.com/v1/chat/completions
-模型: gpt-4o / gpt-4o-mini / gpt-4
-```
-
 #### DeepSeek（推荐性价比）
 
 ```
 Base URL: https://api.deepseek.com/v1/chat/completions
 模型: deepseek-chat / deepseek-coder
+```
+
+#### 月之暗面 Kimi
+
+```
+Base URL: https://api.moonshot.cn/v1/chat/completions
+模型: moonshot-v1-8k / moonshot-v1-32k
+```
+
+#### OpenAI 系列
+
+```
+Base URL: https://api.openai.com/v1/chat/completions
+模型: gpt-4o / gpt-4o-mini / gpt-4
 ```
 
 #### 阿里通义千问
@@ -152,13 +140,6 @@ Base URL: https://api.anthropic.com/v1/chat/completions
 ```
 Base URL: https://open.bigmodel.cn/api/paas/v4/chat/completions
 模型: glm-4 / glm-4-flash
-```
-
-#### 月之暗面 Kimi
-
-```
-Base URL: https://api.moonshot.cn/v1/chat/completions
-模型: moonshot-v1-8k / moonshot-v1-32k
 ```
 
 #### 第三方服务
@@ -191,6 +172,17 @@ Groq: https://api.groq.com/openai/v1/chat/completions
 
 ### 高质量翻译（推荐）
 
+### 性价比翻译（推荐）
+
+**DeepSeek（新用户 500 万 tokens 免费）**
+
+```
+配置名称: DeepSeek 经济翻译
+厂商标识: deepseek
+Base URL: https://api.deepseek.com/v1/chat/completions
+模型名称: deepseek-chat
+```
+
 **ChatGPT 4.0**
 
 ```
@@ -207,17 +199,6 @@ Base URL: https://api.openai.com/v1/chat/completions
 厂商标识: anthropic
 Base URL: https://api.anthropic.com/v1/chat/completions
 模型名称: claude-3-5-sonnet-20241022
-```
-
-### 性价比翻译（推荐）
-
-**DeepSeek（新用户 500 万 tokens 免费）**
-
-```
-配置名称: DeepSeek 经济翻译
-厂商标识: deepseek
-Base URL: https://api.deepseek.com/v1/chat/completions
-模型名称: deepseek-chat
 ```
 
 **通义千问**
@@ -238,63 +219,18 @@ Base URL: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
 厂商标识: deepseek
 Base URL: https://api.deepseek.com/v1/chat/completions
 模型名称: deepseek-coder
-提示词: 作为技术翻译专家，请翻译技术内容，保持术语准确，代码保持原样：{text}
+提示词: 你是专业的中英文翻译，请准确翻译以下内容。中文翻译为英文，英文翻译为中文，只返回翻译结果：{text}
 ```
 
-## 常见问题
-
-### 配置相关
-
-**Q: 如何获取 API Key？**
-
-A: 访问对应服务商官网注册并申请：
-
-- OpenAI: https://platform.openai.com/api-keys
-- DeepSeek: https://platform.deepseek.com/
-- 通义千问: https://bailian.console.aliyun.com/
-
-**Q: Base URL 应该怎么填写？**
-
-A: **必须填写完整的 API 端点地址，包含路径**：
-
-- ✅ 正确：`https://api.openai.com/v1/chat/completions`
-- ❌ 错误：`https://api.openai.com`
-
-**Q: 哪个服务最划算？**
-
-A: 推荐顺序：
-
-1. **DeepSeek** - 新用户 500 万 tokens 免费，极低价格
-2. **通义千问** - 国产服务，价格便宜，中文理解好
-3. **GPT-4o-mini** - OpenAI 轻量版，性价比高
-
-### 使用相关
-
-**Q: 翻译质量不好怎么办？**
-
-A: 优化建议：
-
-- 使用更强的模型（如 GPT-4o、Claude）
-- 自定义提示词
-- 分段翻译长文本
-
-**Q: 出现错误怎么解决？**
-
-A: 常见错误解决方案：
-
-- `401 Unauthorized` - 检查 API Key 是否正确
-- `404 Not Found` - 检查 Base URL 和模型名称
-- `429 Too Many Requests` - 请求过频，稍后重试
-
-**Q: 如何保证数据安全？**
-
-A: 建议：
-
-- 选择信誉良好的服务商
-- 敏感内容使用本地模型
-- 定期更换 API Key
-
 ## 版本更新
+
+### v1.1.3
+
+- ✅ 优化悬浮翻译界面
+- ✅ 修复翻译不准相关问题
+- ✅ 新增悬浮翻译播放功能
+- ✅ 新增悬浮翻译替换功能
+- ✅ 新增快捷键翻译并替换功能
 
 ### v1.1.2
 
@@ -350,6 +286,78 @@ A: 建议：
 - ✅ 发布初始版本
 
 ---
+
+## 安全性说明
+
+**v1.1.2+ 安全增强**
+
+TransGo 安全存储所有敏感信息：
+
+- ✅ **系统级加密**: 使用操作系统的安全存储机制
+
+  - Windows: Windows 凭据管理器
+  - macOS: Keychain
+  - Linux: Secret Service API (libsecret)
+
+- ✅ **防止泄露**: 密钥不会出现在以下位置
+
+  - settings.json 文件
+  - Git 版本控制
+  - VSCode 设置同步
+  - 备份文件
+
+- ✅ **自动迁移**: 从旧版本升级时自动迁移密钥到安全存储
+
+**非敏感配置** (仍保存在 settings.json):
+
+- 服务商 ID (appid, secretid)
+- API 地址 (baseUrl)
+- 模型名称等
+
+## 常见问题
+
+### 配置相关
+
+**Q: 如何获取 API Key？**
+
+A: 访问对应服务商官网注册并申请：
+
+- OpenAI: https://platform.openai.com/api-keys
+- DeepSeek: https://platform.deepseek.com/
+- 通义千问: https://bailian.console.aliyun.com/
+
+**Q: Base URL 应该怎么填写？**
+
+A: **必须填写完整的 API 端点地址，包含路径**：
+
+- ✅ 正确：`https://api.openai.com/v1/chat/completions`
+- ❌ 错误：`https://api.openai.com`
+
+**Q: 哪个服务最划算？**
+
+A: 推荐顺序：
+
+1. **DeepSeek** - 新用户 500 万 tokens 免费，极低价格
+2. **通义千问** - 国产服务，价格便宜，中文理解好
+3. **GPT-4o-mini** - OpenAI 轻量版，性价比高
+
+### 使用相关
+
+**Q: 出现错误怎么解决？**
+
+A: 常见错误解决方案：
+
+- `401 Unauthorized` - 检查 API Key 是否正确
+- `404 Not Found` - 检查 Base URL 和模型名称
+- `429 Too Many Requests` - 请求过频，稍后重试
+
+**Q: 如何保证数据安全？**
+
+A: 建议：
+
+- 选择信誉良好的服务商
+- 敏感内容使用本地模型
+- 定期更换 API Key
 
 ## 获取帮助
 
