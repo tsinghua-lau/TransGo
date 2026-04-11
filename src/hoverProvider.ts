@@ -1,3 +1,4 @@
+import { logger } from './logger'
 import * as vscode from 'vscode'
 import { ConfigManager } from './configManager'
 import { TranslationService } from './translationService'
@@ -376,7 +377,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
       return new vscode.Hover([hoverContent], range)
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : '翻译失败'
-      console.error('悬浮翻译失败:', error)
+      logger.error('悬浮翻译失败:', error)
 
       // 通知用户（仅对配置错误通知，避免频繁打扰）
       if (errorMsg.includes('配置') || errorMsg.includes('不支持')) {
@@ -409,7 +410,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
 
       return result
     } catch (error) {
-      console.error('悬浮翻译 - 翻译任务失败:', error)
+      logger.error('悬浮翻译 - 翻译任务失败:', error)
       throw error
     } finally {
       // 清理pending状态

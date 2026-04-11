@@ -1,3 +1,4 @@
+import { logger } from './logger'
 import axios from 'axios'
 import { AITranslationConfig, ConfigManager } from './configManager'
 import { formatDate, hmacSha256, sha256, sha256Hex, truncate } from './utils/crypto'
@@ -57,7 +58,7 @@ export class TranslationService {
     // - "API接口" (50% 中文) → 中文
     // - "Hello 世界" (33% 中文) → 中文
     // - "Python编程" (50% 中文) → 中文
-    // - "console.log()" (0% 中文) → 英文
+    // - "logger.log()" (0% 中文) → 英文
     // - "getUserInfo" (0% 中文) → 英文
     return chineseRatio > 0.2 ? 'zh' : 'en'
   }
@@ -197,7 +198,7 @@ export class TranslationService {
     let cleanedText = text
     if (!isChineseText) {
       cleanedText = this.englishClearSelectionText(text)
-      //   console.log('英文文本清洗:', {
+      //   logger.log('英文文本清洗:', {
       //     original: text,
       //     cleaned: cleanedText,
       //     timestamp: new Date().toISOString(),
@@ -255,7 +256,7 @@ export class TranslationService {
       }
 
       // 打印请求路径和参数
-      //   console.log('Google翻译API调用:', {
+      //   logger.log('Google翻译API调用:', {
       //     url: url,
       //     params: params,
       //     timestamp: new Date().toISOString(),
@@ -267,7 +268,7 @@ export class TranslationService {
       })
 
       // 打印返回结果
-      //   console.log('Google翻译API返回:', {
+      //   logger.log('Google翻译API返回:', {
       //     status: response.status,
       //     data: response.data,
       //     timestamp: new Date().toISOString(),
@@ -328,7 +329,7 @@ export class TranslationService {
       }
 
       // 打印请求路径和参数
-      //   console.log('百度翻译API调用:', {
+      //   logger.log('百度翻译API调用:', {
       //     url: url,
       //     params: { ...params, appid: '***', sign: '***' }, // 隐藏敏感信息
       //     timestamp: new Date().toISOString(),
@@ -340,7 +341,7 @@ export class TranslationService {
       })
 
       // 打印返回结果
-      //   console.log('百度翻译API返回:', {
+      //   logger.log('百度翻译API返回:', {
       //     status: response.status,
       //     data: response.data,
       //     timestamp: new Date().toISOString(),
@@ -412,7 +413,7 @@ export class TranslationService {
       }
 
       // 打印请求路径和参数
-      //   console.log('有道翻译API调用:', {
+      //   logger.log('有道翻译API调用:', {
       //     url: url,
       //     params: { ...params, appKey: '***', sign: '***' }, // 隐藏敏感信息
       //     timestamp: new Date().toISOString(),
@@ -424,7 +425,7 @@ export class TranslationService {
       })
 
       // 打印返回结果
-      //   console.log('有道翻译API返回:', {
+      //   logger.log('有道翻译API返回:', {
       //     status: response.status,
       //     data: response.data,
       //     timestamp: new Date().toISOString(),
@@ -526,7 +527,7 @@ export class TranslationService {
         'X-TC-Region': 'ap-guangzhou',
       }
 
-      //   console.log('腾讯翻译API调用:', {
+      //   logger.log('腾讯翻译API调用:', {
       //     url: url,
       //     headers: { ...headers, Authorization: '***' },
       //     payload: payload,
@@ -538,7 +539,7 @@ export class TranslationService {
         timeout: 10000,
       })
 
-      //   console.log('腾讯翻译API返回:', {
+      //   logger.log('腾讯翻译API返回:', {
       //     status: response.status,
       //     data: response.data,
       //     timestamp: new Date().toISOString(),
@@ -618,7 +619,7 @@ export class TranslationService {
       // 直接使用用户填写的Base URL，不进行任何路径处理
       const apiUrl = aiConfig.baseUrl.replace(/\/$/, '') // 只去除尾部斜杠，保持用户原始配置
 
-      //   console.log('AI翻译API调用:', {
+      //   logger.log('AI翻译API调用:', {
       //     baseUrl: aiConfig.baseUrl,
       //     finalUrl: apiUrl,
       //     model: aiConfig.modelName,
@@ -639,7 +640,7 @@ export class TranslationService {
         timeout: 30000,
       })
 
-      //   console.log('AI翻译API返回:', {
+      //   logger.log('AI翻译API返回:', {
       //     status: response.status,
       //     statusText: response.statusText,
       //     headers: response.headers,
@@ -649,7 +650,7 @@ export class TranslationService {
 
       if (response.data && response.data.choices && response.data.choices.length > 0) {
         const result = response.data.choices[0].message?.content || ''
-        // console.log('AI翻译成功:', {
+        // logger.log('AI翻译成功:', {
         //   result: result,
         //   resultLength: result.length,
         //   timestamp: new Date().toISOString(),
@@ -659,7 +660,7 @@ export class TranslationService {
         }
       }
 
-      console.error('AI翻译API返回数据格式错误:', {
+      logger.error('AI翻译API返回数据格式错误:', {
         hasData: !!response.data,
         hasChoices: !!(response.data && response.data.choices),
         choicesLength: response.data?.choices?.length || 0,
@@ -668,7 +669,7 @@ export class TranslationService {
       })
       throw new Error('AI翻译API返回数据格式错误或内容为空')
     } catch (error) {
-      console.error('AI翻译API请求异常:', {
+      logger.error('AI翻译API请求异常:', {
         error: error,
         errorMessage: error instanceof Error ? error.message : '未知错误',
         isAxiosError: axios.isAxiosError(error),
@@ -676,7 +677,7 @@ export class TranslationService {
       })
 
       if (axios.isAxiosError(error)) {
-        console.error('Axios错误详情:', {
+        logger.error('Axios错误详情:', {
           code: error.code,
           status: error.response?.status,
           statusText: error.response?.statusText,

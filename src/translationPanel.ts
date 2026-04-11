@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import { logger } from './logger'
 import { ConfigManager } from './configManager'
 import { TranslationService } from './translationService'
 import { TTSService } from './ttsService'
@@ -20,7 +21,7 @@ export class TranslationPanelProvider {
 
   public static createOrShow(extensionUri: vscode.Uri, selectedText?: string) {
     // 使用Beside列创建更窄的面板，如果没有活动编辑器则在右侧创建一个较窄的面板
-    console.log('TransGo createOrShow 被调用', new Error().stack)
+    logger.log('TransGo createOrShow 被调用', new Error().stack)
     const column = vscode.ViewColumn.Beside
 
     // 如果已经有面板存在，就显示它
@@ -48,7 +49,7 @@ export class TranslationPanelProvider {
     const instance = new TranslationPanelProvider(panel, extensionUri, selectedText)
     // 异步初始化配置
     instance.loadConfigFromSettings().catch((err) => {
-      console.error('加载配置失败:', err)
+      logger.error('加载配置失败:', err)
       vscode.window.showWarningMessage('TransGo: 加载配置失败，部分功能可能不可用')
     })
     TranslationPanelProvider.currentPanel = instance
@@ -79,7 +80,7 @@ export class TranslationPanelProvider {
         try {
           await this.handleMessage(message)
         } catch (error) {
-          console.error('处理消息失败:', message.type, error)
+          logger.error('处理消息失败:', message.type, error)
           // 通知用户未捕获的错误
           const errorMsg = error instanceof Error ? error.message : '操作失败'
           vscode.window.showErrorMessage(`TransGo 操作失败: ${errorMsg}`)
@@ -121,14 +122,14 @@ export class TranslationPanelProvider {
     if (!this.translationState.inputText) {
       this.translationState = savedState
     }
-    // console.log('TransGo Panel: 加载翻译状态:', savedState)
+    // logger.log('TransGo Panel: 加载翻译状态:', savedState)
   }
 
   private async handleMessage(message: any) {
-    // console.log('后端收到消息:', message.type, message)
+    // logger.log('后端收到消息:', message.type, message)
     switch (message.type) {
       case 'webviewReady':
-        // console.log('TransGo Panel: Webview已准备好，开始恢复状态')
+        // logger.log('TransGo Panel: Webview已准备好，开始恢复状态')
         this.restoreState()
         break
       case 'translate':
@@ -143,7 +144,7 @@ export class TranslationPanelProvider {
           })
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : '翻译失败'
-          console.error('翻译失败:', error)
+          logger.error('翻译失败:', error)
 
           // 通知用户
           vscode.window.showErrorMessage(`TransGo: ${errorMsg}`)
@@ -156,7 +157,7 @@ export class TranslationPanelProvider {
         break
       case 'speak':
         try {
-          //   console.log('TTS播放请求:', {
+          //   logger.log('TTS播放请求:', {
           //     text: message.text,
           //     language: message.language,
           //     provider: ConfigManager.getTTSProvider(),
@@ -165,7 +166,7 @@ export class TranslationPanelProvider {
           this._panel.webview.postMessage({ type: 'speakComplete' })
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : '语音播放失败'
-          console.error('TTS播放失败:', error)
+          logger.error('TTS播放失败:', error)
 
           // 通知用户
           vscode.window.showErrorMessage(`TransGo 语音播放失败: ${errorMsg}`)
@@ -248,11 +249,11 @@ export class TranslationPanelProvider {
         })
         break
       case 'removeAIConfig':
-        console.log('后端接收到删除AI配置请求，ID:', message.configId)
+        logger.log('后端接收到删除AI配置请求，ID:', message.configId)
         await this.translationService.removeAIConfig(message.configId)
-        console.log('删除AI配置完成，获取最新配置列表')
+        logger.log('删除AI配置完成，获取最新配置列表')
         const updatedConfigs = await this.translationService.getAIConfigs()
-        console.log('删除后的配置列表:', updatedConfigs)
+        logger.log('删除后的配置列表:', updatedConfigs)
 
         // 删除后立即返回最新的配置列表
         this._panel.webview.postMessage({
@@ -316,6 +317,23 @@ export class TranslationPanelProvider {
         await ConfigManager.setTencentTTSConfig(message.secretId, message.secretKey, message.voiceType)
         await this.ttsService.loadTencentConfig()
         break
+      case 'getVolcanoTTSConfig':
+        this._panel.webview.postMessage({
+          type: 'volcanoTTSConfig',
+          config: await ConfigManager.getVolcanoTTSConfig(),
+        })
+        break
+      case 'getVolcanoTTSVoices':
+        this._panel.webview.postMessage({
+          type: 'volcanoTTSVoices',
+          voices: this.ttsService.getVolcanoVoices(),
+        })
+        break
+      case 'setVolcanoTTSConfig':
+        await ConfigManager.setVolcanoTTSConfig(message.appId, message.accessKey, message.resourceId, message.speaker)
+        await this.ttsService.loadVolcanoConfig()
+        logger.log('[TranslationPanel] 火山TTS配置已保存并重新加载')
+        break
       case 'getHoverReplaceFormat':
         this._panel.webview.postMessage({
           type: 'hoverReplaceFormat',
@@ -329,7 +347,7 @@ export class TranslationPanelProvider {
   }
 
   private async saveState() {
-    // console.log('TransGo Panel: 保存翻译状态:', this.translationState)
+    // logger.log('TransGo Panel: 保存翻译状态:', this.translationState)
     await ConfigManager.saveTranslationState(this.translationState)
   }
 
@@ -382,9 +400,17 @@ export class TranslationPanelProvider {
       })
     })
 
+    // 异步发送火山TTS配置
+    ConfigManager.getVolcanoTTSConfig().then((config) => {
+      this._panel.webview.postMessage({
+        type: 'volcanoTTSConfig',
+        config,
+      })
+    })
+
     // 恢复输入文本
     if (this.translationState.inputText) {
-      console.log('TransGo Panel: 恢复输入文本:', this.translationState.inputText)
+      logger.log('TransGo Panel: 恢复输入文本:', this.translationState.inputText)
       this._panel.webview.postMessage({
         type: 'restoreInputText',
         text: this.translationState.inputText,
@@ -393,7 +419,7 @@ export class TranslationPanelProvider {
 
     // 恢复翻译结果
     if (this.translationState.translationResult) {
-      console.log('TransGo Panel: 恢复翻译结果:', this.translationState.translationResult)
+      logger.log('TransGo Panel: 恢复翻译结果:', this.translationState.translationResult)
       this._panel.webview.postMessage({
         type: 'restoreTranslationResult',
         result: this.translationState.translationResult,
@@ -402,7 +428,7 @@ export class TranslationPanelProvider {
 
     // 恢复驼峰转换结果
     if (this.translationState.camelCaseResult) {
-      //   console.log('TransGo Panel: 恢复驼峰转换结果:', this.translationState.camelCaseResult)
+      //   logger.log('TransGo Panel: 恢复驼峰转换结果:', this.translationState.camelCaseResult)
       this._panel.webview.postMessage({
         type: 'restoreCamelCaseResult',
         result: this.translationState.camelCaseResult,
@@ -1397,6 +1423,7 @@ export class TranslationPanelProvider {
                         <select id="ttsProviderSelect" class="provider-select">
                             <option value="system">系统语音</option>
                             <option value="tencent">腾讯云语音</option>
+                            <option value="volcano">火山语音</option>
                         </select>
                     </div>
                     
@@ -1415,6 +1442,30 @@ export class TranslationPanelProvider {
                         <div class="form-group">
                             <label class="label" for="tencentTTSVoiceType">音色选择:</label>
                             <select id="tencentTTSVoiceType" class="provider-select">
+                                <!-- 音色选项将通过JavaScript动态生成 -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="volcanoTTSConfig" class="config-section">
+                        <div class="config-note">
+                            使用火山语音需要在 <a href="https://console.volcengine.com/speech/service/tts" class="config-link" target="_blank">火山引擎控制台</a> 获取 App ID 和 Access Key
+                        </div>
+                        <div class="form-group">
+                            <label class="label" for="volcanoTTSAppId">App ID:</label>
+                            <input type="text" id="volcanoTTSAppId" class="config-input" placeholder="请输入火山引擎 App ID">
+                        </div>
+                        <div class="form-group">
+                            <label class="label" for="volcanoTTSAccessKey">Access Key:</label>
+                            <input type="password" id="volcanoTTSAccessKey" class="config-input" placeholder="请输入火山引擎 Access Key">
+                        </div>
+                        <div class="form-group">
+                            <label class="label" for="volcanoTTSResourceId">Resource ID:</label>
+                            <input type="text" id="volcanoTTSResourceId" class="config-input" placeholder="如 seed-tts-2.0">
+                        </div>
+                        <div class="form-group">
+                            <label class="label" for="volcanoTTSSpeaker">音色选择:</label>
+                            <select id="volcanoTTSSpeaker" class="provider-select">
                                 <!-- 音色选项将通过JavaScript动态生成 -->
                             </select>
                         </div>
@@ -1543,6 +1594,14 @@ export class TranslationPanelProvider {
                 const tencentTTSSecretId = document.getElementById('tencentTTSSecretId');
                 const tencentTTSSecretKey = document.getElementById('tencentTTSSecretKey');
                 const tencentTTSVoiceType = document.getElementById('tencentTTSVoiceType');
+
+                // 火山TTS相关元素
+                const volcanoTTSConfig = document.getElementById('volcanoTTSConfig');
+                const volcanoTTSAppId = document.getElementById('volcanoTTSAppId');
+                const volcanoTTSAccessKey = document.getElementById('volcanoTTSAccessKey');
+                const volcanoTTSResourceId = document.getElementById('volcanoTTSResourceId');
+                const volcanoTTSSpeaker = document.getElementById('volcanoTTSSpeaker');
+                console.log('[TransGo] 火山TTS DOM元素:', { volcanoTTSConfig, volcanoTTSAppId, volcanoTTSAccessKey, volcanoTTSResourceId, volcanoTTSSpeaker });
                 
                 // 更新标签文本的函数
                 function updateInputLabel(provider) {
@@ -2068,6 +2127,8 @@ export class TranslationPanelProvider {
                             if (ttsProviderSelect) {
                                 ttsProviderSelect.value = message.provider;
                                 tencentTTSConfig.classList.toggle('show', message.provider === 'tencent');
+                                volcanoTTSConfig.classList.toggle('show', message.provider === 'volcano');
+                                console.log('[TransGo] TTS提供商已更新:', message.provider);
                             }
                             break;
                         case 'tencentTTSConfig':
@@ -2089,6 +2150,31 @@ export class TranslationPanelProvider {
                                 option.value = voice.value;
                                 option.textContent = voice.label;
                                 tencentTTSVoiceType.appendChild(option);
+                            });
+                            break;
+                        case 'volcanoTTSConfig':
+                            if (message.config.appId) {
+                                volcanoTTSAppId.value = message.config.appId;
+                            }
+                            if (message.config.accessKey) {
+                                volcanoTTSAccessKey.value = message.config.accessKey;
+                            }
+                            if (message.config.resourceId) {
+                                volcanoTTSResourceId.value = message.config.resourceId;
+                            }
+                            if (message.config.speaker) {
+                                volcanoTTSSpeaker.value = message.config.speaker;
+                            }
+                            console.log('[TransGo] 火山TTS配置已恢复:', message.config.appId);
+                            break;
+                        case 'volcanoTTSVoices':
+                            // 动态填充音色选项
+                            volcanoTTSSpeaker.innerHTML = '';
+                            message.voices.forEach(voice => {
+                                const option = document.createElement('option');
+                                option.value = voice.value;
+                                option.textContent = voice.label;
+                                volcanoTTSSpeaker.appendChild(option);
                             });
                             break;
                         case 'hoverReplaceFormat':
@@ -2446,6 +2532,8 @@ export class TranslationPanelProvider {
                     const provider = ttsProviderSelect.value;
                     vscode.postMessage({ type: 'setTTSProvider', provider: provider });
                     tencentTTSConfig.classList.toggle('show', provider === 'tencent');
+                    volcanoTTSConfig.classList.toggle('show', provider === 'volcano');
+                    console.log('[TransGo] TTS提供商切换为:', provider);
                 });
                 
                 // 腾讯TTS配置保存
@@ -2463,6 +2551,25 @@ export class TranslationPanelProvider {
                 tencentTTSSecretId.addEventListener('blur', saveTencentTTSConfig);
                 tencentTTSSecretKey.addEventListener('blur', saveTencentTTSConfig);
                 tencentTTSVoiceType.addEventListener('change', saveTencentTTSConfig);
+
+                // 火山TTS配置保存
+                function saveVolcanoTTSConfig() {
+                    if (volcanoTTSAppId.value && volcanoTTSAccessKey.value) {
+                        console.log('[TransGo] 保存火山TTS配置, appId:', volcanoTTSAppId.value);
+                        vscode.postMessage({
+                            type: 'setVolcanoTTSConfig',
+                            appId: volcanoTTSAppId.value,
+                            accessKey: volcanoTTSAccessKey.value,
+                            resourceId: volcanoTTSResourceId.value || 'seed-tts-2.0',
+                            speaker: volcanoTTSSpeaker.value
+                        });
+                    }
+                }
+
+                volcanoTTSAppId.addEventListener('blur', saveVolcanoTTSConfig);
+                volcanoTTSAccessKey.addEventListener('blur', saveVolcanoTTSConfig);
+                volcanoTTSResourceId.addEventListener('blur', saveVolcanoTTSConfig);
+                volcanoTTSSpeaker.addEventListener('change', saveVolcanoTTSConfig);
 
                 // 监听悬浮替换格式选择变化
                 hoverReplaceFormatSelect.addEventListener('change', () => {
@@ -2483,6 +2590,8 @@ export class TranslationPanelProvider {
                 vscode.postMessage({ type: 'getTTSProvider' });
                 vscode.postMessage({ type: 'getTencentTTSConfig' });
                 vscode.postMessage({ type: 'getTencentTTSVoices' });
+                vscode.postMessage({ type: 'getVolcanoTTSConfig' });
+                vscode.postMessage({ type: 'getVolcanoTTSVoices' });
                 vscode.postMessage({ type: 'getHoverReplaceFormat' });
             </script>
         </body>

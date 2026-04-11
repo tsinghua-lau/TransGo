@@ -1,3 +1,4 @@
+import { logger } from './logger'
 import * as vscode from 'vscode'
 
 export interface AITranslationConfig {
@@ -173,36 +174,36 @@ export class ConfigManager {
    * 删除AI翻译配置
    */
   static async removeAIConfig(configId: string): Promise<void> {
-    console.log('ConfigManager: 开始删除AI配置，ID:', configId)
+    logger.log('ConfigManager: 开始删除AI配置，ID:', configId)
     const configs = await this.getAIConfigsWithSecrets()
-    console.log('删除前的配置列表:', configs)
+    logger.log('删除前的配置列表:', configs)
 
     const filteredConfigs = configs.filter((c) => c.id !== configId)
-    console.log('过滤后的配置列表:', filteredConfigs)
+    logger.log('过滤后的配置列表:', filteredConfigs)
 
     await this.setAIConfigs(filteredConfigs)
     
     // 删除对应的 apiKey
     await this.getSecrets().delete(`transgo.ai.config.${configId}.apiKey`)
-    console.log('配置已保存到VSCode设置')
+    logger.log('配置已保存到VSCode设置')
 
     // 如果删除的是当前选中的配置，需要更新选中状态
     const currentConfigId = this.getCurrentAIConfigId()
-    console.log('当前选中的配置ID:', currentConfigId)
+    logger.log('当前选中的配置ID:', currentConfigId)
 
     if (currentConfigId === configId) {
-      console.log('删除的是当前选中的配置，需要更新选中状态')
+      logger.log('删除的是当前选中的配置，需要更新选中状态')
       if (filteredConfigs.length > 0) {
         // 选择第一个剩余的配置
-        console.log('选择第一个剩余配置:', filteredConfigs[0].id)
+        logger.log('选择第一个剩余配置:', filteredConfigs[0].id)
         await this.setCurrentAIConfigId(filteredConfigs[0].id)
       } else {
         // 没有配置了，清空选择
-        console.log('没有配置了，清空选择')
+        logger.log('没有配置了，清空选择')
         await this.setCurrentAIConfigId('')
       }
     }
-    console.log('删除AI配置完成')
+    logger.log('删除AI配置完成')
   }
 
   /**
@@ -273,6 +274,7 @@ export class ConfigManager {
     await secrets.delete('transgo.youdao.appsecret')
     await secrets.delete('transgo.tencent.secretkey')
     await secrets.delete('transgo.tts.tencent.secretKey')
+    await secrets.delete('transgo.tts.volcano.accessKey')
     
     // 清除所有 AI 配置的 apiKey
     const configs = this.getAIConfigs()
@@ -297,7 +299,7 @@ export class ConfigManager {
    */
   static async saveTranslationState(state: { inputText: string; translationResult: any; camelCaseResult: string }): Promise<void> {
     const config = vscode.workspace.getConfiguration(this.SECTION)
-    // console.log('ConfigManager: 保存状态到配置:', state)
+    // logger.log('ConfigManager: 保存状态到配置:', state)
     await config.update('state', state, vscode.ConfigurationTarget.Global)
   }
 
@@ -315,7 +317,7 @@ export class ConfigManager {
       translationResult: null,
       camelCaseResult: '',
     })
-    console.log('ConfigManager: 从配置读取状态:', state)
+    logger.log('ConfigManager: 从配置读取状态:', state)
     return state
   }
 
@@ -426,6 +428,34 @@ export class ConfigManager {
     await config.update('tts.tencent.secretId', secretId, vscode.ConfigurationTarget.Global)
     await this.getSecrets().store('transgo.tts.tencent.secretKey', secretKey)
     await config.update('tts.tencent.voiceType', voiceType, vscode.ConfigurationTarget.Global)
+  }
+
+  /**
+   * 获取火山TTS配置
+   */
+  static async getVolcanoTTSConfig(): Promise<{ appId: string; accessKey: string; resourceId: string; speaker: string }> {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    const accessKey = (await this.getSecrets().get('transgo.tts.volcano.accessKey')) || ''
+    const result = {
+      appId: config.get('tts.volcano.appId', ''),
+      accessKey,
+      resourceId: config.get('tts.volcano.resourceId', 'seed-tts-2.0'),
+      speaker: config.get('tts.volcano.speaker', 'zh_female_vv_uranus_bigtts'),
+    }
+    logger.log('[ConfigManager] 获取火山TTS配置, appId:', result.appId, 'resourceId:', result.resourceId, 'speaker:', result.speaker)
+    return result
+  }
+
+  /**
+   * 设置火山TTS配置
+   */
+  static async setVolcanoTTSConfig(appId: string, accessKey: string, resourceId: string, speaker: string): Promise<void> {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    await config.update('tts.volcano.appId', appId, vscode.ConfigurationTarget.Global)
+    await this.getSecrets().store('transgo.tts.volcano.accessKey', accessKey)
+    await config.update('tts.volcano.resourceId', resourceId, vscode.ConfigurationTarget.Global)
+    await config.update('tts.volcano.speaker', speaker, vscode.ConfigurationTarget.Global)
+    logger.log('[ConfigManager] 火山TTS配置已保存, appId:', appId, 'resourceId:', resourceId, 'speaker:', speaker)
   }
 
   /**

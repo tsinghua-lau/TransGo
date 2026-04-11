@@ -5,14 +5,18 @@ import { TextFormatter } from './textFormatter'
 import { TranslationPanelProvider } from './translationPanel'
 import { TranslationService } from './translationService'
 import { TTSService } from './ttsService'
+import { initLogger, logger } from './logger'
 
 export function activate(context: vscode.ExtensionContext) {
+  // 初始化日志（生产环境静默）
+  initLogger(context.extensionMode)
+
   // 初始化 ConfigManager
   ConfigManager.initialize(context)
 
   // 执行数据迁移（从旧版本的 settings.json 迁移到 SecretStorage）
   migrateSecretsFromSettings(context).catch((err) => {
-    console.error('密钥迁移失败:', err)
+    logger.error('密钥迁移失败:', err)
   })
 
   // 注册悬浮翻译提供器 - 支持所有文件类型
@@ -289,7 +293,7 @@ export function activate(context: vscode.ExtensionContext) {
   // 监听配置变化
   context.subscriptions.push(
     ConfigManager.onConfigurationChanged((e) => {
-      //   console.log('配置已更改，重新加载配置')
+      //   logger.log('配置已更改，重新加载配置')
       // 可以在这里添加配置变化时的处理逻辑
     })
   )
@@ -302,11 +306,11 @@ export function activate(context: vscode.ExtensionContext) {
 async function migrateSecretsFromSettings(context: vscode.ExtensionContext): Promise<void> {
   const migrated = context.globalState.get('transgo-secrets-migrated-v2', false)
   if (migrated) {
-    console.log('密钥已迁移，跳过迁移步骤')
+    logger.log('密钥已迁移，跳过迁移步骤')
     return
   }
 
-  console.log('开始迁移敏感信息到 SecretStorage...')
+  logger.log('开始迁移敏感信息到 SecretStorage...')
   const config = vscode.workspace.getConfiguration('transgo')
   let migrationCount = 0
 
@@ -316,7 +320,7 @@ async function migrateSecretsFromSettings(context: vscode.ExtensionContext): Pro
     if (baiduKey) {
       await context.secrets.store('transgo.baidu.appkey', baiduKey)
       migrationCount++
-      console.log('已迁移: 百度翻译密钥')
+      logger.log('已迁移: 百度翻译密钥')
     }
 
     // 迁移有道密钥
@@ -324,7 +328,7 @@ async function migrateSecretsFromSettings(context: vscode.ExtensionContext): Pro
     if (youdaoSecret) {
       await context.secrets.store('transgo.youdao.appsecret', youdaoSecret)
       migrationCount++
-      console.log('已迁移: 有道翻译密钥')
+      logger.log('已迁移: 有道翻译密钥')
     }
 
     // 迁移腾讯翻译密钥
@@ -332,7 +336,7 @@ async function migrateSecretsFromSettings(context: vscode.ExtensionContext): Pro
     if (tencentKey) {
       await context.secrets.store('transgo.tencent.secretkey', tencentKey)
       migrationCount++
-      console.log('已迁移: 腾讯翻译密钥')
+      logger.log('已迁移: 腾讯翻译密钥')
     }
 
     // 迁移腾讯TTS密钥
@@ -340,7 +344,7 @@ async function migrateSecretsFromSettings(context: vscode.ExtensionContext): Pro
     if (tencentTTSKey) {
       await context.secrets.store('transgo.tts.tencent.secretKey', tencentTTSKey)
       migrationCount++
-      console.log('已迁移: 腾讯TTS密钥')
+      logger.log('已迁移: 腾讯TTS密钥')
     }
 
     // 迁移AI配置的 apiKey
@@ -355,7 +359,7 @@ async function migrateSecretsFromSettings(context: vscode.ExtensionContext): Pro
           const { apiKey, ...rest } = cfg
           migratedConfigs.push(rest)
           migrationCount++
-          console.log(`已迁移: AI配置 ${cfg.name} 的 apiKey`)
+          logger.log(`已迁移: AI配置 ${cfg.name} 的 apiKey`)
         } else {
           migratedConfigs.push(cfg)
         }
@@ -367,13 +371,13 @@ async function migrateSecretsFromSettings(context: vscode.ExtensionContext): Pro
     await context.globalState.update('transgo-secrets-migrated-v2', true)
 
     if (migrationCount > 0) {
-      console.log(`密钥迁移完成，共迁移 ${migrationCount} 个密钥`)
+      logger.log(`密钥迁移完成，共迁移 ${migrationCount} 个密钥`)
       vscode.window.showInformationMessage(`TransGo: 已将 ${migrationCount} 个密钥迁移到安全存储`)
     } else {
-      console.log('没有需要迁移的密钥')
+      logger.log('没有需要迁移的密钥')
     }
   } catch (error) {
-    console.error('密钥迁移失败:', error)
+    logger.error('密钥迁移失败:', error)
     vscode.window.showErrorMessage('TransGo: 密钥迁移失败，请检查控制台日志')
   }
 }

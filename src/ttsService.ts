@@ -1,9 +1,11 @@
+import { logger } from './logger'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import * as say from 'say'
 import { ConfigManager } from './configManager'
 import { TencentTTSService } from './tencentTtsService'
+import { VolcanoTTSService } from './volcanoTtsService'
 
 export interface TTSOptions {
   voice?: string
@@ -15,12 +17,16 @@ export class TTSService {
   private static instance: TTSService
   private isCurrentlySpeaking: boolean = false
   private tencentTTS: TencentTTSService
+  private volcanoTTS: VolcanoTTSService
   private currentAudioProcess: any = null
   private tempAudioFiles: string[] = []
+  private isStoppedByUser: boolean = false
 
   private constructor() {
     this.tencentTTS = TencentTTSService.getInstance()
+    this.volcanoTTS = VolcanoTTSService.getInstance()
     this.loadTencentConfig()
+    this.loadVolcanoConfig()
   }
 
   static getInstance(): TTSService {
@@ -45,6 +51,24 @@ export class TTSService {
   }
 
   /**
+   * 加载火山TTS配置（公开方法，供外部调用）
+   */
+  async loadVolcanoConfig(): Promise<void> {
+    const config = await ConfigManager.getVolcanoTTSConfig()
+    if (config.appId && config.accessKey) {
+      this.volcanoTTS.setConfig({
+        appId: config.appId,
+        accessKey: config.accessKey,
+        resourceId: config.resourceId,
+        speaker: config.speaker,
+      })
+      logger.log('[TTSService] 火山TTS配置加载成功')
+    } else {
+      logger.log('[TTSService] 火山TTS配置未完整，跳过加载')
+    }
+  }
+
+  /**
    * 播放文本
    * @param text 要播放的文本
    * @param language 语言类型 'zh' | 'en'
@@ -60,11 +84,16 @@ export class TTSService {
       this.stop()
     }
 
+    this.isStoppedByUser = false
+
     // 获取当前TTS提供商
     const provider = ConfigManager.getTTSProvider()
+    logger.log('[TTSService] 当前TTS提供商:', provider)
 
     if (provider === 'tencent') {
       return this.speakWithTencent(text, language, options)
+    } else if (provider === 'volcano') {
+      return this.speakWithVolcano(text, language, options)
     } else {
       return this.speakWithSystem(text, language, options)
     }
@@ -86,7 +115,7 @@ export class TTSService {
       // 如果没有指定音色，使用配置的音色，如果配置也没有，则根据语言选择默认音色
       const voiceType = options?.voiceType || this.tencentTTS.getConfiguredVoiceType() || this.tencentTTS.getDefaultVoiceByLanguage(language)
 
-      //   console.log('使用腾讯TTS播放，音色类型:😄😄', voiceType)
+      //   logger.log('使用腾讯TTS播放，音色类型:😄😄', voiceType)
 
       // 调用腾讯TTS API获取音频数据
       const base64Audio = await this.tencentTTS.textToSpeech(text, voiceType)
@@ -101,6 +130,48 @@ export class TTSService {
 
       // 写入临时文件
       fs.writeFileSync(tempFile, audioBuffer)
+
+      // 使用系统播放器播放
+      await this.playAudioFile(tempFile)
+
+      this.isCurrentlySpeaking = false
+
+      // 播放完成后删除临时文件
+      this.cleanupTempFiles()
+    } catch (error) {
+      this.isCurrentlySpeaking = false
+      this.cleanupTempFiles()
+      throw error
+    }
+  }
+
+  /**
+   * 使用火山TTS播放
+   */
+  private async speakWithVolcano(text: string, language: 'zh' | 'en', options?: TTSOptions): Promise<void> {
+    await this.loadVolcanoConfig()
+
+    if (!this.volcanoTTS.isConfigured()) {
+      throw new Error('火山语音服务未配置，请在设置中配置 App ID 和 Access Key')
+    }
+
+    try {
+      this.isCurrentlySpeaking = true
+
+      const speaker = this.volcanoTTS.getConfiguredSpeaker() || this.volcanoTTS.getDefaultSpeakerByLanguage(language)
+      logger.log('[TTSService] 使用火山TTS播放，speaker:', speaker)
+
+      // 调用火山TTS API获取音频 Buffer
+      const audioBuffer = await this.volcanoTTS.textToSpeech(text, speaker)
+
+      // 创建临时文件
+      const tempDir = os.tmpdir()
+      const tempFile = path.join(tempDir, `transgo_volcano_tts_${Date.now()}.mp3`)
+      this.tempAudioFiles.push(tempFile)
+
+      // 写入临时文件
+      fs.writeFileSync(tempFile, audioBuffer)
+      logger.log('[TTSService] 火山TTS音频已写入临时文件:', tempFile)
 
       // 使用系统播放器播放
       await this.playAudioFile(tempFile)
@@ -135,10 +206,15 @@ export class TTSService {
         command = `mpg123 "${filePath}" || ffplay -nodisp -autoexit "${filePath}"`
       }
 
+      this.isStoppedByUser = false
       this.currentAudioProcess = exec(command, (error: any) => {
         this.currentAudioProcess = null
         if (error) {
-          reject(new Error(`音频播放失败: ${error.message}`))
+          if (this.isStoppedByUser) {
+            resolve()
+          } else {
+            reject(new Error(`音频播放失败: ${error.message}`))
+          }
         } else {
           resolve()
         }
@@ -204,6 +280,7 @@ export class TTSService {
    */
   stop(): void {
     try {
+      this.isStoppedByUser = true
       // 停止系统语音
       say.stop()
 
@@ -217,7 +294,7 @@ export class TTSService {
       this.cleanupTempFiles()
     } catch (error) {
       this.isCurrentlySpeaking = false
-      console.log('停止语音播放:', error instanceof Error ? error.message : '无正在播放的内容')
+      logger.log('停止语音播放:', error instanceof Error ? error.message : '无正在播放的内容')
     }
   }
 
@@ -231,7 +308,7 @@ export class TTSService {
           fs.unlinkSync(file)
         }
       } catch (error) {
-        console.log('清理临时文件失败:', error)
+        logger.log('清理临时文件失败:', error)
       }
     })
     this.tempAudioFiles = []
@@ -249,6 +326,13 @@ export class TTSService {
    */
   getTencentVoices() {
     return this.tencentTTS.getVoiceOptions()
+  }
+
+  /**
+   * 获取火山TTS可用音色列表
+   */
+  getVolcanoVoices() {
+    return this.volcanoTTS.getVoiceOptions()
   }
 
   /**
