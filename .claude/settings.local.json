@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm init -y)",
+      "Bash(mkdir -p src)",
+      "Bash(npm install)",
+      "Bash(npm run compile)",
+      "Bash(mkdir -p .vscode)",
+      "WebSearch",
+      "Bash(code:*)"
+    ],
+    "deny": []
+  }
+}
