@@ -1,14 +1,15 @@
 {
   "name": "TransGo",
-  "displayName": "中英文翻译",
-  "description": "侧边栏中文翻译插件，支持对话翻译、悬浮翻译、朗读、转为驼峰下划线等，现已支持AI翻译（ChatGPT、Claude等）",
-  "version": "1.1.5",
+  "displayName": "TransGo - AI翻译 & 悬浮翻译",
+  "description": "TransGo - VS Code 强大 AI 中英文翻译插件。支持侧边栏对话翻译、鼠标悬浮翻译、选中文本一键翻译、语音朗读（火山引擎豆包 TTS）、驼峰/下划线命名转换。现全面支持 DeepSeek、ChatGPT、Claude、Kimi、通义千问等大模型，同时兼容 Google、百度、有道、腾讯等传统引擎。API 密钥安全加密存储，适合开发者处理代码注释、技术文档、变量名翻译。无需切换窗口，高效快捷！",
+  "version": "1.1.6",
   "publisher": "tsinghua-lau",
   "engines": {
     "vscode": "^1.74.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Programming Languages"
   ],
   "activationEvents": [
     "*"
@@ -214,21 +215,23 @@
   "keywords": [
     "翻译",
     "translate",
-    "hover translate",
-    "悬浮翻译",
-    "baidu translate",
-    "百度翻译",
     "ai翻译",
     "AI translate",
     "大模型翻译",
+    "deepseek",
+    "悬浮翻译",
+    "hover translate",
+    "侧边栏翻译",
+    "代码翻译",
+    "注释翻译",
+    "comment translate",
+    "中英翻译",
     "chatgpt translate",
-    "google translate",
-    "谷歌翻译",
-    "language",
-    "translate",
-    "translation",
-    "chinese",
-    "english"
+    "claude translate",
+    "语音朗读",
+    "tts",
+    "驼峰命名",
+    "命名转换"
   ],
   "author": "tsinghua-lau",
   "license": "MIT"

@@ -1,6 +1,10 @@
-# TransGo 中英文翻译
+# TransGo - AI翻译 & 悬浮翻译
 
-TransGo 是一个免费专业的翻译插件，支持对话翻译、悬浮翻译、语音朗读、转驼峰命名等功能，现已全面支持主流 AI 翻译服务，可视化操作配置，轻松实现高质量翻译体验。
+**TransGo** 是 VS Code 中功能强大的 AI 中英文翻译插件，支持侧边栏对话翻译、鼠标悬浮翻译、选中文本一键翻译、语音朗读（火山引擎豆包 TTS 高质量语音）、驼峰/下划线命名转换。
+
+现已全面支持 **DeepSeek**（性价比高，新用户免费额度）、ChatGPT、Claude、Kimi、通义千问等大模型，同时兼容传统引擎。API 密钥采用**系统级加密存储**，安全可靠。
+
+![TransGo 演示](https://github.com/tsinghua-lau/TransGo/blob/master/preview.gif?raw=true)
 
 > ![提示](https://img.shields.io/badge/Tip-提示-blue?style=flat-square)
 > 如果升级后无法使用，重新安装即可。
@@ -46,6 +50,10 @@ TransGo 是一个免费专业的翻译插件，支持对话翻译、悬浮翻译
 - 点击"翻译"按钮或使用快捷键 `Enter`
 
 ## 版本更新
+
+### v1.1.6
+
+- ✅ Marketplace 元数据优化
 
 ### v1.1.5
 
