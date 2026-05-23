@@ -181,7 +181,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
     const copyArgs = JSON.stringify([translationResult.translatedText])
     const copyCommand = `command:transgo.copyText?${encodeURIComponent(copyArgs)}`
     if (extensionUri) {
-      const copyIconUri = vscode.Uri.joinPath(extensionUri, 'src', 'images', 'copy.png')
+      const copyIconUri = vscode.Uri.joinPath(extensionUri, 'src', 'images', 'copy.svg')
       markdown.appendMarkdown(`[<img src="${copyIconUri.toString()}" width="16" height="16" align="absmiddle">&nbsp;复制](${copyCommand} "复制翻译结果")`)
     } else {
       markdown.appendMarkdown(`[📋 复制](${copyCommand} "复制翻译结果")`)
@@ -196,7 +196,7 @@ export class TranslationHoverProvider implements vscode.HoverProvider {
     ])
     const playCommand = `command:transgo.playTextFromHover?${encodeURIComponent(playArgs)}`
     if (extensionUri) {
-      const playIconUri = vscode.Uri.joinPath(extensionUri, 'src', 'images', 'play.png')
+      const playIconUri = vscode.Uri.joinPath(extensionUri, 'src', 'images', 'play.svg')
       markdown.appendMarkdown(`&nbsp;&nbsp;&nbsp;[<img src="${playIconUri.toString()}" width="16" height="16" align="absmiddle">&nbsp;播放](${playCommand} "播放原文")`)
     } else {
       markdown.appendMarkdown(`&nbsp;&nbsp;&nbsp;[▶️ 播放](${playCommand} "播放原文")`)

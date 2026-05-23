@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
-import { logger } from './logger'
 import { ConfigManager } from './configManager'
+import { logger } from './logger'
 import { TranslationService } from './translationService'
 import { TTSService } from './ttsService'
 
@@ -87,7 +87,7 @@ export class TranslationPanelProvider {
         }
       },
       null,
-      this._disposables
+      this._disposables,
     )
   }
 
@@ -334,6 +334,15 @@ export class TranslationPanelProvider {
         await this.ttsService.loadVolcanoConfig()
         logger.log('[TranslationPanel] 火山TTS配置已保存并重新加载')
         break
+      case 'getThemeMode':
+        this._panel.webview.postMessage({
+          type: 'themeMode',
+          mode: ConfigManager.getThemeMode(),
+        })
+        break
+      case 'setThemeMode':
+        await ConfigManager.setThemeMode(message.mode)
+        break
       case 'getHoverReplaceFormat':
         this._panel.webview.postMessage({
           type: 'hoverReplaceFormat',
@@ -384,6 +393,12 @@ export class TranslationPanelProvider {
     this._panel.webview.postMessage({
       type: 'enableHoverTranslation',
       enabled: ConfigManager.getHoverTranslationEnabled(),
+    })
+
+    // 发送主题配置
+    this._panel.webview.postMessage({
+      type: 'themeMode',
+      mode: ConfigManager.getThemeMode(),
     })
 
     // 发送TTS配置
@@ -499,19 +514,19 @@ export class TranslationPanelProvider {
 
   private _getHtmlForWebview(webview: vscode.Webview) {
     // 获取本地图片的路径，并将其转换为 webview 可以使用的 uri
-    const sendIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'send.png')
+    const sendIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'send.svg')
     const sendIconUri = webview.asWebviewUri(sendIconPath)
 
-    const playIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'play.png')
+    const playIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'play.svg')
     const playIconUri = webview.asWebviewUri(playIconPath)
 
-    const stopIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'stop.png')
+    const stopIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'stop.svg')
     const stopIconUri = webview.asWebviewUri(stopIconPath)
 
-    const copyIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'copy.png')
+    const copyIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'copy.svg')
     const copyIconUri = webview.asWebviewUri(copyIconPath)
 
-    const loadingIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'loading.png')
+    const loadingIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'loading.svg')
     const loadingIconUri = webview.asWebviewUri(loadingIconPath)
 
     const settingIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'setting.png')
@@ -535,16 +550,134 @@ export class TranslationPanelProvider {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>翻译面板</title>
             <style>
+                :root {
+                    color-scheme: light dark;
+                }
+
                 body {
+                    --transgo-body-background: var(--vscode-editor-background);
+                    --transgo-camel-button-background: var(--vscode-button-secondaryBackground);
+                    --transgo-danger-foreground: #ffffff;
+                    --transgo-dialog-overlay: rgba(0, 0, 0, 0.5);
+                    --transgo-dialog-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
                     font-family: var(--vscode-font-family);
                     padding: 20px;
                     color: var(--vscode-foreground);
-                    // background-color: var(--vscode-editor-background);
                     margin: 0;
                     line-height: 1.5;
                     height: 100vh;
                     box-sizing: border-box;
-                    background-color:rgb(20, 20, 20);
+                    background-color: var(--transgo-body-background);
+                    transition: background-color 0.2s ease, color 0.2s ease;
+                }
+
+                .icon-mask {
+                    display: inline-block;
+                    width: 18px;
+                    height: 18px;
+                    flex-shrink: 0;
+                    background-color: currentColor;
+                    -webkit-mask-repeat: no-repeat;
+                    mask-repeat: no-repeat;
+                    -webkit-mask-position: center;
+                    mask-position: center;
+                    -webkit-mask-size: contain;
+                    mask-size: contain;
+                }
+
+                .icon-mask.icon-send {
+                    -webkit-mask-image: url('${sendIconUri}');
+                    mask-image: url('${sendIconUri}');
+                }
+
+                .icon-mask.icon-play {
+                    -webkit-mask-image: url('${playIconUri}');
+                    mask-image: url('${playIconUri}');
+                }
+
+                .icon-mask.icon-stop {
+                    -webkit-mask-image: url('${stopIconUri}');
+                    mask-image: url('${stopIconUri}');
+                }
+
+                .icon-mask.icon-copy {
+                    -webkit-mask-image: url('${copyIconUri}');
+                    mask-image: url('${copyIconUri}');
+                }
+
+                .icon-mask.icon-loading {
+                    -webkit-mask-image: url('${loadingIconUri}');
+                    mask-image: url('${loadingIconUri}');
+                }
+
+                .icon-mask.icon-done {
+                    width: 24px;
+                    height: 24px;
+                    -webkit-mask-image: url('${doneIconUri}');
+                    mask-image: url('${doneIconUri}');
+                }
+
+                body[data-theme-mode="dark"] {
+                    --vscode-foreground: #e6edf3;
+                    --vscode-editor-background: #111722;
+                    --vscode-sideBar-background: #161d29;
+                    --vscode-input-background: #0d1117;
+                    --vscode-input-foreground: #e6edf3;
+                    --vscode-input-border: #30363d;
+                    --vscode-panel-border: #30363d;
+                    --vscode-button-background: #2f81f7;
+                    --vscode-button-foreground: #ffffff;
+                    --vscode-button-hoverBackground: #1f6feb;
+                    --vscode-button-border: #30363d;
+                    --vscode-button-secondaryBackground: #212830;
+                    --vscode-button-secondaryForeground: #c9d1d9;
+                    --vscode-button-secondaryHoverBackground: #30363d;
+                    --vscode-badge-background: #1f6feb;
+                    --vscode-badge-foreground: #ffffff;
+                    --vscode-descriptionForeground: #9da7b3;
+                    --vscode-focusBorder: #2f81f7;
+                    --vscode-errorForeground: #f85149;
+                    --vscode-inputValidation-errorBorder: #f85149;
+                    --vscode-list-activeSelectionBackground: #1f6feb;
+                    --vscode-list-activeSelectionForeground: #ffffff;
+                    --vscode-testing-iconPassed: #2ea043;
+                    --vscode-textBlockQuote-background: #161b22;
+                    --vscode-textBlockQuote-border: #30363d;
+                    --vscode-textLink-foreground: #58a6ff;
+                    --transgo-dialog-overlay: rgba(0, 0, 0, 0.55);
+                    --transgo-dialog-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+                }
+
+                body[data-theme-mode="light"] {
+                    color-scheme: light;
+                    --vscode-foreground: #1f2328;
+                    --vscode-editor-background: #ffffff;
+                    --vscode-sideBar-background: #f6f8fa;
+                    --vscode-input-background: #ffffff;
+                    --vscode-input-foreground: #1f2328;
+                    --vscode-input-border: #d0d7de;
+                    --vscode-panel-border: #d0d7de;
+                    --vscode-button-background: #0969da;
+                    --vscode-button-foreground: #ffffff;
+                    --vscode-button-hoverBackground: #0860ca;
+                    --vscode-button-border: #d0d7de;
+                    --vscode-button-secondaryBackground: #f6f8fa;
+                    --vscode-button-secondaryForeground: #24292f;
+                    --vscode-button-secondaryHoverBackground: #eaeef2;
+                    --vscode-badge-background: #0969da;
+                    --vscode-badge-foreground: #ffffff;
+                    --vscode-descriptionForeground: #57606a;
+                    --vscode-focusBorder: #0969da;
+                    --vscode-errorForeground: #cf222e;
+                    --vscode-inputValidation-errorBorder: #cf222e;
+                    --vscode-list-activeSelectionBackground: #ddf4ff;
+                    --vscode-list-activeSelectionForeground: #0969da;
+                    --vscode-testing-iconPassed: #1a7f37;
+                    --vscode-textBlockQuote-background: #f6f8fa;
+                    --vscode-textBlockQuote-border: #d0d7de;
+                    --vscode-textLink-foreground: #0969da;
+                    --transgo-dialog-overlay: rgba(15, 23, 42, 0.18);
+                    --transgo-dialog-shadow: 0 4px 20px rgba(15, 23, 42, 0.16);
                 }
                 
                 .container {
@@ -571,7 +704,7 @@ export class TranslationPanelProvider {
                     width: 36px;
                     height: 36px;
                     background: transparent;
-                    border: 1px solid var(--vscode-button-border);
+                    border: none;
                     color: var(--vscode-button-secondaryForeground);
                     border-radius: 8px;
                     cursor: pointer;
@@ -602,6 +735,7 @@ export class TranslationPanelProvider {
                     font-weight: 600;
                     color: var(--vscode-foreground);
                     font-size: 14px;
+                    margin-bottom: 4px;
                 }
                 
                 .ai-icon {
@@ -620,7 +754,7 @@ export class TranslationPanelProvider {
                 
                 .input-container:focus-within {
                     border-color: var(--vscode-focusBorder);
-                    box-shadow: 0 0 0 2px var(--vscode-focusBorder);
+                    box-shadow: none;
                 }
                 
                 .input-textarea {
@@ -656,7 +790,6 @@ export class TranslationPanelProvider {
                     width: 36px;
                     height: 36px;
                     background: transparent;
-                    color: var(--vscode-button-foreground);
                     border: none;
                     border-radius: 8px;
                     cursor: pointer;
@@ -665,18 +798,21 @@ export class TranslationPanelProvider {
                     justify-content: center;
                     transition: all 0.2s ease;
                 }
+
+                .input-play-btn {
+                    color: var(--vscode-button-background);
+                }
+
+                .send-btn {
+                    color: var(--vscode-button-background);
+                }
                 
                 .input-play-btn:hover, .send-btn:hover {
                     // background-color: var(--vscode-button-hoverBackground);
                     transform: translateY(-1px);
                 }
                 
-                .input-play-btn img, .send-btn img {
-                    width: 18px;
-                    height: 18px;
-                }
-                
-                .send-btn.loading img {
+                .send-btn.loading .icon-mask {
                     animation: spin 1s linear infinite;
                 }
                 
@@ -713,13 +849,21 @@ export class TranslationPanelProvider {
                 .result-content {
                     padding: 20px 16px 60px 16px;
                     background-color: var(--vscode-editor-background);
+                    border: 1px solid var(--vscode-panel-border);
                     min-height: 80px;
                     font-size: 15px;
                     line-height: 1.6;
                     word-wrap: break-word;
                     white-space: pre-wrap;
                     color: var(--vscode-foreground);
-                    border-radius: 0 0 8px 8px;
+                    border-radius: 8px;
+                    box-sizing: border-box;
+                    outline: none;
+                    transition: border-color 0.2s ease;
+                }
+                
+                .result-content:focus {
+                    border-color: var(--vscode-focusBorder);
                 }
                 
                 .result-actions-bottom {
@@ -736,8 +880,8 @@ export class TranslationPanelProvider {
                     width: 32px;
                     height: 32px;
                     background: transparent;
-                    border: 1px solid var(--vscode-button-border);
-                    color: var(--vscode-button-secondaryForeground);
+                    border: none;
+                    color: var(--vscode-button-background);
                     border-radius: 8px;
                     cursor: pointer;
                     display: flex;
@@ -757,11 +901,7 @@ export class TranslationPanelProvider {
                 
                 .result-copy-btn.copied {
                     background-color: var(--vscode-testing-iconPassed);
-                    border-color: var(--vscode-testing-iconPassed);
-                }
-                
-                .result-copy-btn.copied img {
-                    filter: brightness(0) invert(1);
+                    color: var(--vscode-button-foreground);
                 }
                 
                 .camel-case-section {
@@ -778,8 +918,7 @@ export class TranslationPanelProvider {
                 .btn-camel-case {
                     font-size: 11px;
                     font-weight: 500;
-                    background:#292929;
-                    // background: var(--vscode-button-secondaryBackground);
+                    background: var(--transgo-camel-button-background);
                     border: 1px solid var(--vscode-button-border);
                     color: var(--vscode-button-secondaryForeground);
                     cursor: pointer;
@@ -824,6 +963,12 @@ export class TranslationPanelProvider {
                     color: var(--vscode-foreground);
                     font-family: 'Courier New', monospace;
                     font-weight: 600;
+                    outline: none;
+                    transition: border-color 0.2s ease;
+                }
+                
+                .camel-case-content:focus {
+                    border-color: var(--vscode-focusBorder);
                 }
                 
                 .camel-case-actions-bottom {
@@ -836,8 +981,8 @@ export class TranslationPanelProvider {
                     width: 32px;
                     height: 32px;
                     background: transparent;
-                    border: 1px solid var(--vscode-button-border);
-                    color: var(--vscode-button-secondaryForeground);
+                    border: none;
+                    color: var(--vscode-button-background);
                     border-radius: 6px;
                     cursor: pointer;
                     display: flex;
@@ -851,18 +996,9 @@ export class TranslationPanelProvider {
                     transform: translateY(-1px);
                 }
                 
-                .camel-copy-btn img {
-                    width: 16px;
-                    height: 16px;
-                }
-                
                 .camel-copy-btn.copied {
                     background-color: var(--vscode-testing-iconPassed);
-                    border-color: var(--vscode-testing-iconPassed);
-                }
-                
-                .camel-copy-btn.copied img {
-                    filter: brightness(0) invert(1);
+                    color: var(--vscode-button-foreground);
                 }
                 
                 .error {
@@ -933,6 +1069,10 @@ export class TranslationPanelProvider {
                     padding: 8px 16px;
                     border-radius: 6px;
                     cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: var(--vscode-button-secondaryForeground);
                     font-family: var(--vscode-font-family);
                     font-size: 13px;
                     font-weight: 500;
@@ -963,8 +1103,8 @@ export class TranslationPanelProvider {
                 
                 .provider-select:focus, .config-input:focus {
                     outline: none;
-                    border-color: var(--vscode-focusBorder);
-                    box-shadow: 0 0 0 2px var(--vscode-focusBorder);
+                    border-color: var(--vscode-input-border);
+                    box-shadow: none;
                 }
                 
                 .config-section {
@@ -993,7 +1133,6 @@ export class TranslationPanelProvider {
                     line-height: 1.4;
                     padding: 8px 12px;
                     background-color: var(--vscode-textBlockQuote-background);
-                    border-left: 3px solid var(--vscode-textBlockQuote-border);
                     border-radius: 4px;
                 }
                 
@@ -1074,7 +1213,7 @@ export class TranslationPanelProvider {
                 
                 .ai-config-action-btn.delete-btn {
                     background-color: var(--vscode-inputValidation-errorBorder);
-                    color: white;
+                    color: var(--transgo-danger-foreground);
                     border-color: var(--vscode-inputValidation-errorBorder);
                 }
                 
@@ -1152,7 +1291,7 @@ export class TranslationPanelProvider {
                     left: 0;
                     width: 100%;
                     height: 100%;
-                    background: rgba(0, 0, 0, 0.5);
+                    background: var(--transgo-dialog-overlay);
                     display: none;
                     justify-content: center;
                     align-items: center;
@@ -1166,7 +1305,7 @@ export class TranslationPanelProvider {
                     padding: 24px;
                     max-width: 400px;
                     width: 90%;
-                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                    box-shadow: var(--transgo-dialog-shadow);
                 }
                 
                 .custom-confirm-title {
@@ -1220,7 +1359,7 @@ export class TranslationPanelProvider {
                 
                 .custom-confirm-btn.danger {
                     background-color: var(--vscode-inputValidation-errorBorder);
-                    color: white;
+                    color: var(--transgo-danger-foreground);
                     border-color: var(--vscode-inputValidation-errorBorder);
                 }
                 
@@ -1243,10 +1382,10 @@ export class TranslationPanelProvider {
                         <textarea id="inputText" class="input-textarea" placeholder="输入中文或英文文本... (按 Enter 键翻译)"></textarea>
                         <div class="input-actions">
                             <button id="inputPlayBtn" class="input-play-btn" title="播放原文">
-                                <img id="inputPlayIcon" src="${playIconUri}" alt="播放" />
+                                <span id="inputPlayIcon" class="icon-mask icon-play" aria-hidden="true"></span>
                             </button>
                             <button id="sendBtn" class="send-btn" title="翻译">
-                                <img src="${sendIconUri}" alt="翻译" />
+                                <span id="sendIcon" class="icon-mask icon-send" aria-hidden="true"></span>
                             </button>
                         </div>
                     </div>
@@ -1257,13 +1396,13 @@ export class TranslationPanelProvider {
                         <div id="languageInfo" class="language-info"></div>
                     </div>
                     <div class="result-content-wrapper">
-                        <div id="resultContent" class="result-content"></div>
+                        <div id="resultContent" class="result-content" tabindex="0"></div>
                         <div class="result-actions-bottom">
                             <button id="resultPlayBtn" class="result-play-btn" title="播放译文">
-                                <img id="resultPlayIcon" src="${playIconUri}" alt="播放" />
+                                <span id="resultPlayIcon" class="icon-mask icon-play" aria-hidden="true"></span>
                             </button>
                             <button id="copyBtn" class="result-copy-btn" title="复制">
-                                <img id="copyIcon" src="${copyIconUri}" alt="复制" />
+                                <span id="copyIcon" class="icon-mask icon-copy" aria-hidden="true"></span>
                             </button>
                         </div>
                     </div>
@@ -1278,10 +1417,10 @@ export class TranslationPanelProvider {
                     </div>
                     <div id="camelCaseResult" class="camel-case-result" style="display: none;">
                         <div class="camel-case-content-wrapper">
-                            <div id="camelCaseContent" class="camel-case-content"></div>
+                            <div id="camelCaseContent" class="camel-case-content" tabindex="0"></div>
                             <div class="camel-case-actions-bottom">
                                 <button id="camelCopyBtn" class="camel-copy-btn" title="复制转换结果">
-                                    <img id="camelCopyIcon" src="${copyIconUri}" alt="复制" />
+                                    <span id="camelCopyIcon" class="icon-mask icon-copy" aria-hidden="true"></span>
                                 </button>
                             </div>
                         </div>
@@ -1306,7 +1445,7 @@ export class TranslationPanelProvider {
                 <div id="settingsPage" class="settings-page">
                     <div class="settings-header">
                         <h3 class="settings-title">翻译设置</h3>
-                            <button id="doneBtn" class="done-btn"><img src="${doneIconUri}" alt="完成" style="width:24px;height:24px;vertical-align:middle;" /></button>
+                            <button id="doneBtn" class="done-btn" title="完成"><span class="icon-mask icon-done" aria-hidden="true"></span></button>
                     </div>
                     
                     <div class="form-group">
@@ -1486,6 +1625,18 @@ export class TranslationPanelProvider {
                     </div>
 
                     <div class="form-group">
+                        <label class="label" for="themeModeSelect">主题模式:</label>
+                        <select id="themeModeSelect" class="provider-select">
+                            <option value="follow-vscode">跟随 VS Code</option>
+                            <option value="dark">深色</option>
+                            <option value="light">浅色</option>
+                        </select>
+                        <div class="config-note" style="margin-top: 8px; font-size: 12px;">
+                            选择“跟随 VS Code”时，面板会优先使用当前编辑器主题的配色变量。
+                        </div>
+                    </div>
+
+                    <div class="form-group">
                         <label class="label" for="hoverReplaceFormatSelect">悬浮替换格式:</label>
                         <select id="hoverReplaceFormatSelect" class="provider-select">
                             <option value="none">不转换（保持原文）</option>
@@ -1509,6 +1660,7 @@ export class TranslationPanelProvider {
                 const sendBtn = document.getElementById('sendBtn');
                 const inputPlayBtn = document.getElementById('inputPlayBtn');
                 const inputPlayIcon = document.getElementById('inputPlayIcon');
+                const sendIcon = document.getElementById('sendIcon');
                 const resultSection = document.getElementById('resultSection');
                 const resultContent = document.getElementById('resultContent');
                 const languageInfo = document.getElementById('languageInfo');
@@ -1555,6 +1707,7 @@ export class TranslationPanelProvider {
                 // 界面设置元素
                 const showCamelCaseButtonsCheckbox = document.getElementById('showCamelCaseButtonsCheckbox');
                 const enableHoverTranslationCheckbox = document.getElementById('enableHoverTranslationCheckbox');
+                const themeModeSelect = document.getElementById('themeModeSelect');
                 const hoverReplaceFormatSelect = document.getElementById('hoverReplaceFormatSelect');
 
                 // 自定义确认对话框元素
@@ -1587,6 +1740,7 @@ export class TranslationPanelProvider {
                 let editingConfigId = null;
                 let showCamelCaseButtons = true; // 是否显示驼峰按钮
                 let enableHoverTranslation = false; // 是否启用悬浮翻译
+                let currentThemeMode = 'follow-vscode';
                 
                 // TTS相关元素
                 const ttsProviderSelect = document.getElementById('ttsProviderSelect');
@@ -1630,6 +1784,20 @@ export class TranslationPanelProvider {
                         inputLabel.innerHTML = '<img src="' + traditionLogoUri + '" class="ai-icon" alt="AI" />' + providerName;
 
                         // inputLabel.textContent = providerName;
+                    }
+                }
+
+                function applyThemeMode(mode) {
+                    currentThemeMode = mode || 'follow-vscode';
+
+                    if (currentThemeMode === 'follow-vscode') {
+                        document.body.removeAttribute('data-theme-mode');
+                    } else {
+                        document.body.setAttribute('data-theme-mode', currentThemeMode);
+                    }
+
+                    if (themeModeSelect) {
+                        themeModeSelect.value = currentThemeMode;
                     }
                 }
                 
@@ -1841,13 +2009,15 @@ export class TranslationPanelProvider {
                 }
                 
                 // 图片 URI
-                const playIconUri = '${playIconUri}';
-                const stopIconUri = '${stopIconUri}';
-                const copyIconUri = '${copyIconUri}';
-                const sendIconUri = '${sendIconUri}';
-                const loadingIconUri = '${loadingIconUri}';
                 const aiIconUri = '${aiIconUri}';
                 const traditionLogoUri = '${traditionLogoUri}';
+
+                function setIconVariant(iconElement, nextVariant) {
+                    if (!iconElement) return;
+
+                    iconElement.classList.remove('icon-send', 'icon-play', 'icon-stop', 'icon-copy', 'icon-loading', 'icon-done');
+                    iconElement.classList.add(nextVariant);
+                }
                 
                 // 翻译功能
                 function performTranslation() {
@@ -1859,11 +2029,7 @@ export class TranslationPanelProvider {
                     
                     sendBtn.disabled = true;
                     sendBtn.classList.add('loading');
-                    const sendImg = sendBtn.querySelector('img');
-                    if (sendImg) {
-                        sendImg.src = loadingIconUri;
-                        sendImg.alt = '翻译中';
-                    }
+                    setIconVariant(sendIcon, 'icon-loading');
                     hideError();
                     
                     vscode.postMessage({
@@ -1919,8 +2085,7 @@ export class TranslationPanelProvider {
                     
                     isSpeaking = true;
                     currentSpeakingButton = button;
-                    iconElement.src = stopIconUri;
-                    iconElement.alt = '停止';
+                    setIconVariant(iconElement, 'icon-stop');
                     
                     vscode.postMessage({
                         type: 'speak',
@@ -1937,10 +2102,8 @@ export class TranslationPanelProvider {
                 function resetSpeakingState() {
                     isSpeaking = false;
                     currentSpeakingButton = null;
-                    inputPlayIcon.src = playIconUri;
-                    inputPlayIcon.alt = '播放';
-                    resultPlayIcon.src = playIconUri;
-                    resultPlayIcon.alt = '播放';
+                    setIconVariant(inputPlayIcon, 'icon-play');
+                    setIconVariant(resultPlayIcon, 'icon-play');
                 }
                 
                 // 复制按钮
@@ -1994,21 +2157,13 @@ export class TranslationPanelProvider {
                         case 'translationResult':
                             sendBtn.disabled = false;
                             sendBtn.classList.remove('loading');
-                            const sendImg1 = sendBtn.querySelector('img');
-                            if (sendImg1) {
-                                sendImg1.src = sendIconUri;
-                                sendImg1.alt = '翻译';
-                            }
+                            setIconVariant(sendIcon, 'icon-send');
                             showResult(message.result);
                             break;
                         case 'translationError':
                             sendBtn.disabled = false;
                             sendBtn.classList.remove('loading');
-                            const sendImg2 = sendBtn.querySelector('img');
-                            if (sendImg2) {
-                                sendImg2.src = sendIconUri;
-                                sendImg2.alt = '翻译';
-                            }
+                            setIconVariant(sendIcon, 'icon-send');
                             showError(message.error);
                             break;
                         case 'speakComplete':
@@ -2122,6 +2277,9 @@ export class TranslationPanelProvider {
                             if (enableHoverTranslationCheckbox) {
                                 enableHoverTranslationCheckbox.checked = enableHoverTranslation;
                             }
+                            break;
+                        case 'themeMode':
+                            applyThemeMode(message.mode);
                             break;
                         case 'ttsProvider':
                             if (ttsProviderSelect) {
@@ -2354,6 +2512,7 @@ export class TranslationPanelProvider {
                     vscode.postMessage({ type: 'getAIConfigs' });
                     vscode.postMessage({ type: 'getShowCamelCaseButtons' });
                     vscode.postMessage({ type: 'getEnableHoverTranslation' });
+                    vscode.postMessage({ type: 'getThemeMode' });
                     vscode.postMessage({ type: 'getTTSProvider' });
                     vscode.postMessage({ type: 'getTencentTTSConfig' });
                 }
@@ -2526,6 +2685,12 @@ export class TranslationPanelProvider {
                     vscode.postMessage({ type: 'setEnableHoverTranslation', enabled: enabled });
                     enableHoverTranslation = enabled;
                 });
+
+                themeModeSelect.addEventListener('change', () => {
+                    const mode = themeModeSelect.value;
+                    applyThemeMode(mode);
+                    vscode.postMessage({ type: 'setThemeMode', mode: mode });
+                });
                 
                 // TTS提供商选择事件
                 ttsProviderSelect.addEventListener('change', () => {
@@ -2592,6 +2757,7 @@ export class TranslationPanelProvider {
                 vscode.postMessage({ type: 'getTencentTTSVoices' });
                 vscode.postMessage({ type: 'getVolcanoTTSConfig' });
                 vscode.postMessage({ type: 'getVolcanoTTSVoices' });
+                vscode.postMessage({ type: 'getThemeMode' });
                 vscode.postMessage({ type: 'getHoverReplaceFormat' });
             </script>
         </body>

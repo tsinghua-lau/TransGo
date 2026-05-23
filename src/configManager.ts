@@ -11,6 +11,8 @@ export interface AITranslationConfig {
   vendor: string
 }
 
+export type ThemeMode = 'follow-vscode' | 'dark' | 'light'
+
 /**
  * 配置管理器，负责处理所有与VS Code settings.json相关的配置操作
  * 敏感信息（密钥）使用 SecretStorage 安全存储
@@ -389,6 +391,23 @@ export class ConfigManager {
   static async setHoverTranslationDelay(delay: number): Promise<void> {
     const config = vscode.workspace.getConfiguration(this.SECTION)
     await config.update('hoverTranslationDelay', delay, vscode.ConfigurationTarget.Global)
+  }
+
+  /**
+   * 获取翻译面板主题模式
+   */
+  static getThemeMode(): ThemeMode {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    const value = config.get<ThemeMode>('themeMode', 'follow-vscode')
+    return value === 'dark' || value === 'light' || value === 'follow-vscode' ? value : 'follow-vscode'
+  }
+
+  /**
+   * 设置翻译面板主题模式
+   */
+  static async setThemeMode(mode: ThemeMode): Promise<void> {
+    const config = vscode.workspace.getConfiguration(this.SECTION)
+    await config.update('themeMode', mode, vscode.ConfigurationTarget.Global)
   }
 
   /**
