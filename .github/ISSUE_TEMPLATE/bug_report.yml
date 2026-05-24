@@ -1,0 +1,101 @@
+name: Bug Report
+description: 报告 Bug 帮助我们改进插件
+title: '[Bug] '
+labels: ['bug']
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Bug 反馈
+
+        请填写以下详细信息。
+
+  - type: checkboxes
+    id: issue-type
+    attributes:
+      label: 问题类型
+      description: 这是什么问题？
+      options:
+        - label: Bug（功能未按预期工作）
+          required: true
+        - label: 功能建议（想要新功能）
+        - label: 问题咨询（需要帮助）
+
+  - type: dropdown
+    id: plugin-version
+    attributes:
+      label: 插件版本
+      description: 您使用的是哪个版本的 TransGo？
+      options:
+        - latest (最新版本)
+        - v1.1.7
+        - v1.1.6
+        - v1.1.5
+        - v1.1.4
+        - 其他版本（请在下方说明）
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug 描述
+      description: 请详细描述这个 Bug
+      placeholder: |
+        请详细描述这个 Bug...
+        - 你想要做什么？
+        - 实际发生了什么？
+        - 你期望发生什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 如何复现这个问题？
+      placeholder: |
+        1. 前往 '...'
+        2. 点击 '...'
+        3. 滚动到 '...'
+        4. 看到错误
+
+        终端输出（如有）:
+        ```
+        在此粘贴终端输出
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境信息
+      description: |
+        **请提供以下环境信息**：
+      placeholder: |
+        - 操作系统: [例如 macOS 14.0 / Windows 11 / Ubuntu 22.04]
+        - VS Code 版本: [例如 1.85.0]
+        - 编辑器: [例如 VS Code / Cursor / Windsurf]
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 截图 / 录屏
+      description: |
+        **请尽量提供截图或录屏**，这将大大帮助我们定位和解决问题。
+      placeholder: |
+        拖拽或粘贴图片/ GIF 到此处，或提供简短的录屏
+
+        **截图说明：**
+        - 错误信息截图
+        - 问题界面截图
+        - 终端/控制台输出截图
+
+        **录屏说明（如需要）：**
+        - 录制问题复现过程
+        - 简短即可，5-30秒最佳

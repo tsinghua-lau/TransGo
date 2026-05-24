@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: README
+    url: https://github.com/tsinghua-lau/TransGo#readme
+    about: Please check the FAQ and documentation before creating an issue
+  - name: Discussions
+    url: https://github.com/tsinghua-lau/TransGo/discussions
+    about: For general questions and discussions

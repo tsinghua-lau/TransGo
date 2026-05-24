@@ -1,0 +1,46 @@
+name: Question
+description: 提问或获取帮助
+title: "[Question] "
+labels: ["question"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 问题咨询
+
+        需要帮助？提问前请先查看 [常见问题](https://github.com/tsinghua-lau/TransGo#常见问题)。
+
+  - type: checkboxes
+    id: issue-type
+    attributes:
+      label: 问题类型
+      description: 这是什么问题？
+      options:
+        - label: Bug（功能未按预期工作）
+        - label: 功能建议（想要新功能）
+        - label: 问题咨询（需要帮助）
+          required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 你的问题
+      description: 详细描述你的问题
+      placeholder: |
+        你想知道什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 上下文
+      description: 提供更多上下文（你尝试过什么、错误信息等）
+      placeholder: |
+        - 你已经尝试过什么？
+        - 错误信息或日志（如有）:
+
+        ```
+        在此粘贴错误信息
+        ```
