@@ -95,6 +95,35 @@ export class VolcanoTTSService {
   }
 
   /**
+   * 测试火山TTS服务连通性
+   * @returns Promise<{ success: boolean; message: string }>
+   */
+  async testConnection(): Promise<{ success: boolean; message: string }> {
+    if (!this.isConfigured()) {
+      return {
+        success: false,
+        message: '火山TTS未配置，请先填写 App ID 和 Access Key',
+      }
+    }
+
+    try {
+      // 发送一个短文本请求来验证凭证是否有效
+      const testText = '测试'
+      await this.textToSpeech(testText, this.getDefaultSpeakerByLanguage('zh'))
+      return {
+        success: true,
+        message: '火山TTS服务连接成功',
+      }
+    } catch (error: any) {
+      const errorMsg = error.message || '未知错误'
+      return {
+        success: false,
+        message: `火山TTS连接失败: ${errorMsg}`,
+      }
+    }
+  }
+
+  /**
    * 文本转语音（SSE 流式，Node.js https 实现）
    * 收集所有音频 chunks 合并为完整 MP3 Buffer 返回
    */

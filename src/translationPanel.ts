@@ -87,7 +87,7 @@ export class TranslationPanelProvider {
         }
       },
       null,
-      this._disposables,
+      this._disposables
     )
   }
 
@@ -352,6 +352,40 @@ export class TranslationPanelProvider {
       case 'setHoverReplaceFormat':
         await ConfigManager.setHoverReplaceFormat(message.format)
         break
+      case 'testConnection':
+        try {
+          const result = await this.translationService.testConnection()
+          this._panel.webview.postMessage({
+            type: 'connectionTestResult',
+            success: result.success,
+            message: result.message,
+          })
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : '测试失败'
+          this._panel.webview.postMessage({
+            type: 'connectionTestResult',
+            success: false,
+            message: errorMsg,
+          })
+        }
+        break
+      case 'testTTSConnection':
+        try {
+          const result = await this.ttsService.testConnection()
+          this._panel.webview.postMessage({
+            type: 'ttsConnectionTestResult',
+            success: result.success,
+            message: result.message,
+          })
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : '测试失败'
+          this._panel.webview.postMessage({
+            type: 'ttsConnectionTestResult',
+            success: false,
+            message: errorMsg,
+          })
+        }
+        break
     }
   }
 
@@ -543,6 +577,10 @@ export class TranslationPanelProvider {
     const aiIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'ai.svg')
     const aiIconUri = webview.asWebviewUri(aiIconPath)
 
+    // ping图标（连通性测试）
+    const plugIconPath = vscode.Uri.joinPath(vscode.extensions.getExtension('tsinghua-lau.TransGo')!.extensionUri, 'src', 'images', 'ping.svg')
+    const plugIconUri = webview.asWebviewUri(plugIconPath)
+
     return `<!DOCTYPE html>
         <html lang="zh-CN">
         <head>
@@ -615,6 +653,13 @@ export class TranslationPanelProvider {
                     height: 24px;
                     -webkit-mask-image: url('${doneIconUri}');
                     mask-image: url('${doneIconUri}');
+                }
+
+                .icon-mask.icon-plug {
+                    width: 18px;
+                    height: 18px;
+                    -webkit-mask-image: url('${plugIconUri}');
+                    mask-image: url('${plugIconUri}');
                 }
 
                 body[data-theme-mode="dark"] {
@@ -1082,6 +1127,53 @@ export class TranslationPanelProvider {
                 .done-btn:hover {
                    transform: translateY(-1px);
                 }
+
+                .test-connection-btn {
+                    background: transparent;
+                    border: 1px solid var(--vscode-input-border);
+                    padding: 8px 10px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: var(--vscode-button-secondaryForeground);
+                    transition: all 0.2s ease;
+                    flex-shrink: 0;
+                }
+
+                .test-connection-btn:hover {
+                    background-color: var(--vscode-button-secondaryHoverBackground);
+                    transform: translateY(-1px);
+                }
+
+                .test-connection-btn.loading {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+
+                .test-connection-btn.loading .icon-mask {
+                    animation: spin 1s linear infinite;
+                }
+
+                .connection-test-result {
+                    margin-top: 8px;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                }
+
+                .connection-test-result.success {
+                    background-color: rgba(46, 160, 67, 0.15);
+                    color: var(--vscode-testing-iconPassed);
+                    border: 1px solid var(--vscode-testing-iconPassed);
+                }
+
+                .connection-test-result.error {
+                    background-color: rgba(248, 81, 73, 0.15);
+                    color: var(--vscode-errorForeground);
+                    border: 1px solid var(--vscode-errorForeground);
+                }
                 
                 .form-group {
                     margin-bottom: 16px;
@@ -1099,6 +1191,14 @@ export class TranslationPanelProvider {
                     border-radius: 6px;
                     box-sizing: border-box;
                     transition: border-color 0.2s ease;
+                }
+
+                .provider-select {
+                    padding-right: 24px;
+                    appearance: none;
+                    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+                    background-repeat: no-repeat;
+                    background-position: right 8px center;
                 }
                 
                 .provider-select:focus, .config-input:focus {
@@ -1450,13 +1550,19 @@ export class TranslationPanelProvider {
                     
                     <div class="form-group">
                         <label class="label" for="providerSelect">翻译源:</label>
-                        <select id="providerSelect" class="provider-select">
-                            <option value="google">Google 翻译</option>
-                            <option value="baidu">百度翻译</option>
-                            <option value="youdao">有道翻译</option>
-                            <option value="tencent">腾讯翻译</option>
-                            <option value="ai">AI 翻译</option>
-                        </select>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <select id="providerSelect" class="provider-select" style="flex: 1;">
+                                <option value="google">Google 翻译</option>
+                                <option value="baidu">百度翻译</option>
+                                <option value="youdao">有道翻译</option>
+                                <option value="tencent">腾讯翻译</option>
+                                <option value="ai">AI 翻译</option>
+                            </select>
+                            <button id="testConnectionBtn" class="test-connection-btn" title="测试连通性">
+                                <span class="icon-mask icon-plug" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                        <div id="connectionTestResult" class="connection-test-result" style="display: none;"></div>
                     </div>
                     
                     <div id="baiduConfig" class="config-section">
@@ -1559,13 +1665,19 @@ export class TranslationPanelProvider {
                     
                     <div class="form-group">
                         <label class="label" for="ttsProviderSelect">语音服务:</label>
-                        <select id="ttsProviderSelect" class="provider-select">
-                            <option value="system">系统语音</option>
-                            <option value="tencent">腾讯云语音</option>
-                            <option value="volcano">火山语音</option>
-                        </select>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <select id="ttsProviderSelect" class="provider-select" style="flex: 1;">
+                                <option value="system">系统语音</option>
+                                <option value="tencent">腾讯云语音</option>
+                                <option value="volcano">火山语音</option>
+                            </select>
+                            <button id="testTTSConnectionBtn" class="test-connection-btn" title="测试连通性">
+                                <span class="icon-mask icon-plug" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                        <div id="ttsConnectionTestResult" class="connection-test-result" style="display: none;"></div>
                     </div>
-                    
+
                     <div id="tencentTTSConfig" class="config-section">
                         <div class="config-note">
                             使用腾讯云语音需要在 <a href="https://console.cloud.tencent.com/cam/capi" class="config-link" target="_blank">腾讯云控制台</a> 获取 SecretId 和 SecretKey
@@ -2286,6 +2398,8 @@ export class TranslationPanelProvider {
                                 ttsProviderSelect.value = message.provider;
                                 tencentTTSConfig.classList.toggle('show', message.provider === 'tencent');
                                 volcanoTTSConfig.classList.toggle('show', message.provider === 'volcano');
+                                // 切换提供商时隐藏测试结果
+                                if (ttsConnectionTestResult) { ttsConnectionTestResult.style.display = 'none'; }
                                 console.log('[TransGo] TTS提供商已更新:', message.provider);
                             }
                             break;
@@ -2338,6 +2452,40 @@ export class TranslationPanelProvider {
                         case 'hoverReplaceFormat':
                             if (message.format) {
                                 hoverReplaceFormatSelect.value = message.format;
+                            }
+                            break;
+                        case 'connectionTestResult':
+                            // 移除loading状态
+                            testConnectionBtn.classList.remove('loading');
+                            testConnectionBtn.disabled = false;
+
+                            // 显示结果
+                            connectionTestResult.textContent = message.message;
+                            connectionTestResult.style.display = 'block';
+                            connectionTestResult.classList.remove('success', 'error');
+                            connectionTestResult.classList.add(message.success ? 'success' : 'error');
+
+                            // 3秒后自动隐藏结果
+                            setTimeout(() => {
+                                connectionTestResult.style.display = 'none';
+                            }, 3000);
+                            break;
+                        case 'ttsConnectionTestResult':
+                            // 移除loading状态
+                            const testTTSConnectionBtn = document.getElementById('testTTSConnectionBtn');
+                            const ttsConnectionTestResult = document.getElementById('ttsConnectionTestResult');
+                            if (testTTSConnectionBtn) {
+                                testTTSConnectionBtn.classList.remove('loading');
+                                testTTSConnectionBtn.disabled = false;
+                            }
+                            if (ttsConnectionTestResult) {
+                                ttsConnectionTestResult.textContent = message.message;
+                                ttsConnectionTestResult.style.display = 'block';
+                                ttsConnectionTestResult.classList.remove('success', 'error');
+                                ttsConnectionTestResult.classList.add(message.success ? 'success' : 'error');
+                                setTimeout(() => {
+                                    ttsConnectionTestResult.style.display = 'none';
+                                }, 3000);
                             }
                             break;
                     }
@@ -2582,7 +2730,32 @@ export class TranslationPanelProvider {
                     // 更新输入标签
                     updateInputLabel(provider);
                 });
-                
+
+                // 测试连通性按钮
+                const testConnectionBtn = document.getElementById('testConnectionBtn');
+                const connectionTestResult = document.getElementById('connectionTestResult');
+
+                testConnectionBtn.addEventListener('click', () => {
+                    // 添加loading状态
+                    testConnectionBtn.classList.add('loading');
+                    testConnectionBtn.disabled = true;
+                    connectionTestResult.style.display = 'none';
+
+                    vscode.postMessage({ type: 'testConnection' });
+                });
+
+                // TTS测试按钮
+                const testTTSConnectionBtn = document.getElementById('testTTSConnectionBtn');
+                const ttsConnectionTestResult = document.getElementById('ttsConnectionTestResult');
+
+                testTTSConnectionBtn.addEventListener('click', () => {
+                    testTTSConnectionBtn.classList.add('loading');
+                    testTTSConnectionBtn.disabled = true;
+                    ttsConnectionTestResult.style.display = 'none';
+
+                    vscode.postMessage({ type: 'testTTSConnection' });
+                });
+
                 // 百度配置保存
                 function saveBaiduConfig() {
                     if (baiduAppid.value && baiduAppkey.value) {

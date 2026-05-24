@@ -30,97 +30,6 @@ export class TranslationService {
 
   private constructor() {}
 
-  /**
-   * 检测文本语言类型（中文 or 英文）
-   * 使用中文字符比例判断，提高混合文本识别准确度
-   * @param text 待检测的文本
-   * @returns 'zh' | 'en'
-   */
-  private detectLanguage(text: string): 'zh' | 'en' {
-    const cleanText = text.trim()
-
-    // 统计中文字符数量（包括中文标点符号）
-    const chineseChars = (cleanText.match(/[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]/g) || []).length
-
-    // 统计总字符数（去除空白字符）
-    const totalChars = cleanText.replace(/\s/g, '').length
-
-    // 如果没有有效字符，默认为英文
-    if (totalChars === 0) {
-      return 'en'
-    }
-
-    // 计算中文字符比例
-    const chineseRatio = chineseChars / totalChars
-
-    // 如果中文字符超过 20%，判定为中文文本
-    // 这个阈值可以处理大多数中英混合场景：
-    // - "API接口" (50% 中文) → 中文
-    // - "Hello 世界" (33% 中文) → 中文
-    // - "Python编程" (50% 中文) → 中文
-    // - "logger.log()" (0% 中文) → 英文
-    // - "getUserInfo" (0% 中文) → 英文
-    return chineseRatio > 0.2 ? 'zh' : 'en'
-  }
-
-  // 选中的英文文本清洗干净
-  private englishClearSelectionText(text: string): string {
-    if (!text) {
-      return text
-    }
-
-    // 先保留换行符，将换行符替换为特殊标记
-    const newlineMarker = '<<<NEWLINE>>>'
-    text = text.replace(/\r?\n/g, newlineMarker)
-
-    // 下划线，连接线，小数点自动替换成空格
-    text = text.replace(/_|-|\./g, ' ')
-    const group = text.split(' ').map((txt) => {
-      // 跳过换行标记，不做处理
-      if (txt === newlineMarker) {
-        return txt
-      }
-
-      // 连续的大写字母，不需要处理
-      const txtGroup: string[] = []
-      for (let i = 0; i < txt.length; i++) {
-        if (txt[i].toUpperCase() === txt[i]) {
-          // 当前是大写字母
-          if (i === 0) {
-            // 第一个字母是大写字母，不处理
-            // continue
-          } else if (i > 0 && txt[i - 1].toUpperCase() === txt[i - 1]) {
-            // 上一个字母也是大写字母，不处理
-            // continue
-          } else {
-            // 上一个字母是小写字母，需要添加一个空格
-            txtGroup.push(' ')
-          }
-        }
-        txtGroup.push(txt[i])
-      }
-      // 如果是全部大写，不需要处理
-      return txtGroup.join('')
-    })
-    let str = ''
-    group.forEach((txt, idx) => {
-      if (txt === newlineMarker) {
-        // 遇到换行标记，添加换行符
-        str += '\n'
-      } else if (idx === group.length - 1) {
-        // 最后一个不需要空格
-        str += txt.trim()
-      } else {
-        str += txt.trim() + ' '
-      }
-    })
-
-    // 恢复换行符（防止有遗漏的标记）
-    str = str.replace(new RegExp(newlineMarker, 'g'), '\n')
-
-    return str
-  }
-
   static getInstance(): TranslationService {
     if (!TranslationService.instance) {
       TranslationService.instance = new TranslationService()
@@ -241,6 +150,148 @@ export class TranslationService {
       } else {
         throw new Error(`翻译失败: ${error instanceof Error ? error.message : '未知错误'}`)
       }
+    }
+  }
+
+  /**
+   * 检测文本语言类型（中文 or 英文）
+   * 使用中文字符比例判断，提高混合文本识别准确度
+   * @param text 待检测的文本
+   * @returns 'zh' | 'en'
+   */
+  private detectLanguage(text: string): 'zh' | 'en' {
+    const cleanText = text.trim()
+
+    // 统计中文字符数量（包括中文标点符号）
+    const chineseChars = (cleanText.match(/[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]/g) || []).length
+
+    // 统计总字符数（去除空白字符）
+    const totalChars = cleanText.replace(/\s/g, '').length
+
+    // 如果没有有效字符，默认为英文
+    if (totalChars === 0) {
+      return 'en'
+    }
+
+    // 计算中文字符比例
+    const chineseRatio = chineseChars / totalChars
+
+    // 如果中文字符超过 20%，判定为中文文本
+    return chineseRatio > 0.2 ? 'zh' : 'en'
+  }
+
+  // 选中的英文文本清洗干净
+  private englishClearSelectionText(text: string): string {
+    if (!text) {
+      return text
+    }
+
+    // 先保留换行符，将换行符替换为特殊标记
+    const newlineMarker = '<<<NEWLINE>>>'
+    text = text.replace(/\r?\n/g, newlineMarker)
+
+    // 下划线，连接线，小数点自动替换成空格
+    text = text.replace(/_|-|\./g, ' ')
+    const group = text.split(' ').map((txt) => {
+      // 跳过换行标记，不做处理
+      if (txt === newlineMarker) {
+        return txt
+      }
+
+      // 连续的大写字母，不需要处理
+      const txtGroup: string[] = []
+      for (let i = 0; i < txt.length; i++) {
+        if (txt[i].toUpperCase() === txt[i]) {
+          // 当前是大写字母
+          if (i === 0) {
+            // 第一个字母是大写字母，不处理
+          } else if (i > 0 && txt[i - 1].toUpperCase() === txt[i - 1]) {
+            // 上一个字母也是大写字母，不处理
+          } else {
+            // 上一个字母是小写字母，需要添加一个空格
+            txtGroup.push(' ')
+          }
+        }
+        txtGroup.push(txt[i])
+      }
+      // 如果是全部大写，不需要处理
+      return txtGroup.join('')
+    })
+    let str = ''
+    group.forEach((txt, idx) => {
+      if (txt === newlineMarker) {
+        // 遇到换行标记，添加换行符
+        str += '\n'
+      } else if (idx === group.length - 1) {
+        // 最后一个不需要空格
+        str += txt.trim()
+      } else {
+        str += txt.trim() + ' '
+      }
+    })
+
+    // 恢复换行符（防止有遗漏的标记）
+    str = str.replace(new RegExp(newlineMarker, 'g'), '\n')
+
+    return str
+  }
+
+  /**
+   * 测试翻译源连通性
+   * @param provider 可选的翻译源，如果不传则测试当前选中的翻译源
+   * @returns 返回测试结果信息
+   */
+  async testConnection(provider?: string): Promise<{ success: boolean; message: string }> {
+    const testProvider = provider || this.getCurrentProvider()
+    const testText = 'hello'
+
+    try {
+      switch (testProvider) {
+        case 'google':
+          await this.callGoogleTranslationAPI(testText, 'en', 'zh')
+          return { success: true, message: 'Google 翻译连接成功' }
+
+        case 'baidu':
+          const baiduConfig = await this.getBaiduConfig()
+          if (!baiduConfig.appid || !baiduConfig.appkey) {
+            return { success: false, message: '百度翻译未配置 APPID 或密钥' }
+          }
+          await this.callBaiduTranslationAPI(testText, 'en', 'zh')
+          return { success: true, message: '百度翻译连接成功' }
+
+        case 'youdao':
+          const youdaoConfig = await this.getYoudaoConfig()
+          if (!youdaoConfig.appKey || !youdaoConfig.appSecret) {
+            return { success: false, message: '有道翻译未配置 AppKey 或 AppSecret' }
+          }
+          await this.callYoudaoTranslationAPI(testText, 'en', 'zh')
+          return { success: true, message: '有道翻译连接成功' }
+
+        case 'tencent':
+          const tencentConfig = await this.getTencentConfig()
+          if (!tencentConfig.secretId || !tencentConfig.secretKey) {
+            return { success: false, message: '腾讯翻译未配置 SecretId 或 SecretKey' }
+          }
+          await this.callTencentTranslationAPI(testText, 'en', 'zh')
+          return { success: true, message: '腾讯翻译连接成功' }
+
+        case 'ai':
+          const aiConfig = await this.getCurrentAIConfig()
+          if (!aiConfig) {
+            return { success: false, message: 'AI翻译未配置任何翻译服务' }
+          }
+          if (!aiConfig.baseUrl || !aiConfig.apiKey || !aiConfig.modelName) {
+            return { success: false, message: 'AI翻译配置不完整' }
+          }
+          await this.callAITranslationAPI(testText, 'en', 'zh')
+          return { success: true, message: 'AI翻译连接成功' }
+
+        default:
+          return { success: false, message: `未知的翻译源: ${testProvider}` }
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : '未知错误'
+      return { success: false, message: `连接失败: ${errorMsg}` }
     }
   }
 

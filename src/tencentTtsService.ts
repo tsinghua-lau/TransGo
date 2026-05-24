@@ -84,6 +84,35 @@ export class TencentTTSService {
   }
 
   /**
+   * 测试腾讯TTS服务连通性
+   * @returns Promise<{ success: boolean; message: string }>
+   */
+  async testConnection(): Promise<{ success: boolean; message: string }> {
+    if (!this.isConfigured()) {
+      return {
+        success: false,
+        message: '腾讯TTS未配置，请先填写 SecretId 和 SecretKey',
+      }
+    }
+
+    try {
+      // 发送一个短文本请求来验证凭证是否有效
+      const testText = '测试'
+      await this.textToSpeech(testText, this.getDefaultVoiceByLanguage('zh'))
+      return {
+        success: true,
+        message: '腾讯TTS服务连接成功',
+      }
+    } catch (error: any) {
+      const errorMsg = error.message || '未知错误'
+      return {
+        success: false,
+        message: `腾讯TTS连接失败: ${errorMsg}`,
+      }
+    }
+  }
+
+  /**
    * 文本转语音
    * @param text 要合成的文本
    * @param voiceType 音色类型，如果不提供则使用配置中的默认值

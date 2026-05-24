@@ -360,4 +360,27 @@ export class TTSService {
       return false
     }
   }
+
+  /**
+   * 测试当前TTS服务的连通性
+   * @returns Promise<{ success: boolean; message: string }>
+   */
+  async testConnection(): Promise<{ success: boolean; message: string }> {
+    const provider = ConfigManager.getTTSProvider()
+    logger.log('[TTSService] 测试TTS连通性，提供商:', provider)
+
+    if (provider === 'tencent') {
+      await this.loadTencentConfig()
+      return this.tencentTTS.testConnection()
+    } else if (provider === 'volcano') {
+      await this.loadVolcanoConfig()
+      return this.volcanoTTS.testConnection()
+    } else {
+      // 系统TTS始终可用
+      return {
+        success: true,
+        message: '系统TTS可用',
+      }
+    }
+  }
 }
