@@ -1,4 +1,4 @@
-# TransGo - AI翻译 & 悬浮翻译
+# TransGo - AI 翻译 & 悬浮翻译
 
 **TransGo** 是 VS Code 中功能强大的 AI 中英文翻译插件，支持侧边栏对话翻译、鼠标悬浮翻译、选中文本一键翻译、语音朗读（火山引擎豆包 TTS 高质量语音）、驼峰/下划线命名转换。
 
@@ -52,6 +52,10 @@
 - 点击"翻译"按钮或使用快捷键 `Enter`
 
 ## 版本更新
+
+### v1.1.8
+
+- ✅ 新增翻译源/语音服务连通性测试
 
 ### v1.1.7
 
@@ -174,7 +178,7 @@
 
 1. 注册并登录 [火山引擎控制台](https://console.volcengine.com/)
 2. 进入 [语音技术 · 语音合成](https://console.volcengine.com/speech/service/tts) 页面，开通服务
-3. 选择菜单豆包语音合成模型2.0，选择应用名称，在页面·服务接口认证信息中复制：APP ID、
+3. 选择菜单豆包语音合成模型 2.0，选择应用名称，在页面·服务接口认证信息中复制：APP ID、
    Access Token
 
 > 💡 **App ID** 和 **Access Token** 分别对应插件设置中的 `App ID` 和 `Access Key` 字段。
@@ -355,11 +359,13 @@ Base URL: https://api.deepseek.com/v1/chat/completions
 TransGo 安全存储所有敏感信息：
 
 - ✅ **系统级加密**: 使用操作系统的安全存储机制
+
   - Windows: Windows 凭据管理器
   - macOS: Keychain
   - Linux: Secret Service API (libsecret)
 
 - ✅ **防止泄露**: 密钥不会出现在以下位置
+
   - settings.json 文件
   - Git 版本控制
   - VSCode 设置同步
