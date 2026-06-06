@@ -1,5 +1,5 @@
-import { logger } from './logger'
 import * as https from 'https'
+import { logger } from './logger'
 
 export interface VolcanoTTSVoice {
   value: string

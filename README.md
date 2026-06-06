@@ -53,6 +53,10 @@
 
 ## 版本更新
 
+### v1.1.9
+
+- ✅ 修复windows悬浮替换
+
 ### v1.1.8
 
 - ✅ 新增翻译源/语音服务连通性测试
@@ -359,13 +363,11 @@ Base URL: https://api.deepseek.com/v1/chat/completions
 TransGo 安全存储所有敏感信息：
 
 - ✅ **系统级加密**: 使用操作系统的安全存储机制
-
   - Windows: Windows 凭据管理器
   - macOS: Keychain
   - Linux: Secret Service API (libsecret)
 
 - ✅ **防止泄露**: 密钥不会出现在以下位置
-
   - settings.json 文件
   - Git 版本控制
   - VSCode 设置同步

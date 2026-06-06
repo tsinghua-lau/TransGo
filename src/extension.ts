@@ -132,18 +132,30 @@ export function activate(context: vscode.ExtensionContext) {
         const { text, originalText, range: rangeData, uri } = args
 
         try {
-          // 获取编辑器和文档
-          const editor = vscode.window.activeTextEditor
-          if (!editor || editor.document.uri.toString() !== uri) {
-            vscode.window.showWarningMessage('文档已关闭或切换，无法替换')
+          // 直接通过 URI 打开文档，不依赖 activeTextEditor
+          // 这样可以避免 Windows 上 hover popup 点击后 active editor 上下文丢失的问题
+          let document: vscode.TextDocument
+          try {
+            document = await vscode.workspace.openTextDocument(vscode.Uri.parse(uri))
+          } catch {
+            vscode.window.showWarningMessage('无法打开文档，请确认文档已保存')
             return
           }
 
+          // 检查文档是否已打开，未打开则尝试显示
+          let editor = vscode.window.visibleTextEditors.find((e) => e.document.uri.toString() === uri)
+          if (!editor) {
+            editor = await vscode.window.showTextDocument(document, { viewColumn: vscode.ViewColumn.Active, preserveFocus: false })
+          }
+
           // 重建 Range 对象
-          const range = new vscode.Range(new vscode.Position(rangeData.startLine, rangeData.startChar), new vscode.Position(rangeData.endLine, rangeData.endChar))
+          const range = new vscode.Range(
+            new vscode.Position(rangeData.startLine, rangeData.startChar),
+            new vscode.Position(rangeData.endLine, rangeData.endChar)
+          )
 
           // 验证原始文本是否仍然存在
-          const currentText = editor.document.getText(range).trim()
+          const currentText = document.getText(range).trim()
           if (currentText !== originalText) {
             vscode.window.showWarningMessage('原始文本已改变，无法安全替换。请重新选择文本。')
             return
